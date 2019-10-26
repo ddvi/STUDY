@@ -535,7 +535,7 @@ command1  && command2
 3 只要有一个命令返回假（命令返回值 \$? \== 1），后面的命令就不会被执行。  
 示例 1  
 malihou@ubuntu:~\$ cp \~/Desktop/1.txt ~/1.txt \&& rm \~/Desktop/1.txt \&& echo "success"  
-示例 1 中的命令首先从 ~/Desktop 目录复制 1.txt 文件到 \~ 目录；执行成功后，使用 rm 删除源文件；如果删除成功则输出提示信息。  
+示例 1 中的命令首先从 \~\/Desktop 目录复制 1.txt 文件到 \~ 目录；执行成功后，使用 rm 删除源文件；如果删除成功则输出提示信息。  
 \||运算符:  
 command1 \|| command2  
 ||则与\&&相反。如果||左边的命令（命令1）未执行成功，那么就执行||右边的命令（命令2）；或者换句话说，“如果这个命令执行失败了||那么就执行这个命令。  
@@ -546,7 +546,7 @@ command1 \|| command2
 malihou@ubuntu:~\$ rm ~/Desktop/1.txt \|| echo "fail"  
 在示例 2 中，如果 \~/Desktop 目录下不存在文件 1.txt，将输出提示信息。  
 示例 3  
-malihou@ubuntu:~\$ rm ~/Desktop/1.txt \&& echo "success" || echo "fail"  
+malihou@ubuntu\:\~\$ rm \~\/Desktop/1.txt \&& echo "success" || echo "fail"  
 在示例 3 中，如果 ~/Desktop 目录下存在文件 1.txt，将输出 success 提示信息；否则输出 fail 提示信息。  
 
 
