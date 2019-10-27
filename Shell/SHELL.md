@@ -548,3 +548,251 @@ malihou@ubuntu:\~\$ rm \~/Desktop/1.txt \|\| echo "fail"
 示例 3  
 malihou@ubuntu\:\~\$ rm \~\/Desktop/1.txt \&\& echo "success" \|\| echo "fail"  
 在示例 3 中，如果 \~\/Desktop 目录下存在文件 1.txt，将输出 success 提示信息；否则输出 fail 提示信息。
+
+### 局部变量和全局变量
+> 1. 全局变量
+不做特殊声明，shell中的变量都是全局变量
+tips：大型脚本程序中函数中慎用全局变量
+> 2. 局部变量
+定义变量时，使用local关键字，只能在函数内部使用,函数执行完毕变量就会被销毁
+函数内和外若存在同名变量，则函数内部变量覆盖函数外部变量
+
+```
+#!/bin/bash
+var1="Hello World"
+
+function test
+{
+    var2=2
+    local var3=3
+}
+echo $var1
+echo $var2
+echo $var3
+
+echo "*******"
+test
+echo $var2
+echo $var3
+```
+> 运行结果
+```
+[Running] /bin/bash "/root/workspace/mooc/shell/var.sh"
+Hello World
+
+
+*******
+2
+```
+
+### 函数库
+#### 为什么要定义函数库
+> 经常使用的重复代码封装成函数文件
+一般不直接执行，而是由其他脚本调用
+
+#### 经验
+> 库文件名的后缀是任意的，但一般使用.lib
+库文件通常没有可执行权限
+库文件无需额脚本放在同级目录，只需要在脚本引用时指定，一般放在lib文件夹中
+第一行一般使用#!/bin/echo,输出警告信息，避免用户执行，使用./执行时就会报警告信息中的错了
+```
+[root@manman lib]# ./base_function 
+waring,this is afunction lib,can not be execute ./base_function
+```
+
+
+#### 如何引用函数库文件
+> 在脚本中使用：
+. + 函数库文件绝对路径，然后就可以在脚本中直接调用函数了
+. /home/vagrant/shell/lib/base_function
+
+#### 实例脚本
+> 定义一个函数实现加、减、乘、除并可以显示系统、内存运行情况
+```
+#函数
+#!/bin/echo waring,this is afunction lib,can not be execute
+function add
+{
+    echo "`expr $1 + $2`"
+}
+
+function reduce
+{
+    echo "`expr $1 - $2`"
+}
+
+function multiple
+{
+    echo "`expr $1 \* $2`"
+}
+
+function divide
+{
+    echo "`expr $1 / $2`"
+}
+
+function sys_load
+{
+    echo "Memory Info"
+    echo
+    echo "`free -m`"
+    echo
+    echo "Disk Useage"
+    echo `df -h`
+}
+
+#脚本
+#!/bin/bash
+. /root/workspace/mooc/shell/lib/base_function
+echo "12+13=`add 12 13`"
+echo ""
+echo "15-2=`reduce 15 2`"
+echo ""
+echo "15*2=`multiple 15 2`"
+echo ""
+echo "13/2=`divide 13 2`"
+echo ""
+echo `sys_load`
+
+```
+
+## 常用工具
+### 文件查找-find
+#### 语法格式
+
+|语法格式|find [路径] [选项] [操作]|
+|:--:|:--:|
+
+#### 常用参数
+|选项|含义|
+|:--:|:--:|
+|-name|根据文件名查找|
+|-iname|根据文件名查找,忽略大小写|
+|-perm|根据文件权限查找|
+|-prue|该选项可以排除某些查找目录，通常和-path一起使用，用于将特定目录排除在搜索条件之外|
+|-user|根据文件属主查找|
+|-group|根据文件属组查找|
+|-mtime -n\|+n|根据文件更改时间查找。-n n天内，+n n天外修改的文件|
+|-nogtroup|查找无有效属主的文件|
+|-nouser|查找无有效属组的文件|
+|-newer file1 !file2|查找更改时间比file1xin比file2旧的IDE文件|
+|-type|按文件类型查找|
+|-size -n +n|按文件大小查找|
+|-mindepth n|从n级子目录开始搜索|
+|-maxdepth n|最多搜索到n级子目录|
+
+|文件类型|含义|
+|:--:|:--:|
+|f|文件|
+|d|目录|
+|c|字符设备文件|
+|b|块设备文件|
+|l|链接文件|
+|p|管道文件|
+
+#### 示例
+>1. 查找/etc目录下5天内修改且以conf结尾的文件
+find /etc -mime -5 -name '*.conf'
+>2. 查找以mysql开头或history结尾的文件
+find -name mysql* -o -name *history
+
+#### 操作
+|操作|含义|
+|:--:|:--:|
+|print|打印输出|
+|exec|对搜索到的文件执行特定的操作，格式为-exec 'command' {} \;|
+|-ok|和exec功能一样，只是每次操作都会给用户提示|
+
+#### 示例
+>1. 搜索/etc下的文件（非目录），文件名以conf结尾，且大于10k。然后将其删除
+find ./etc/ -type f -name '*.conf' -size +10k -exec rm -rf {} \;
+>find ./etc/ -type f -name '*.conf' -size +10k -exec cp {} /root/conf/ \;
+
+#### 逻辑运算符
+|选项|含义|
+|:--:|:--:|
+|-a|与（默认）|
+|-o|或|
+|not或!|非|
+
+#### 示例
+>1.查找当前目录下，属主不是hdfs的所有文件
+find . -not -user hdfs |find . ! -user hdfs
+>2. 查找当前目录下，属主是hdfs,且大小大于300字节的文件
+find . -type f -a -user hdfs -a -size +300c 
+
+### find、locate、whereis和which总结以及适用场景分析
+#### locate
+> 1. 文件查找命令，所属软件包mlocate
+>2. 不同于find命令是在整块磁盘中搜索，locate命令是在数据库文件中查找
+>3. find是默认全部匹配，locate则是默认部分匹配（包含就命中）
+>4. updatedb命令
+用户更新/var/lib/mlocate/mlocate.db
+所使用配置文件/etc/updatedb.conf
+该命令在后台cron计划任务中定期执行
+
+#### whereis
+|选项|含义|
+|:--:|:--:|
+|-b|只返回二进制文件|
+|-m|只返回帮助文档文件|
+|-s|只返回源代码文件|
+
+#### which
+作用：仅查找二进制程序文件
+
+#### 各命令使用场景推荐
+|命令|适用场景|优缺点|
+|:--:|:--:|:--:|
+|find|查找某一类文件，比如文件名部分一致|功能强大，速度慢|
+|locate|只能查找单个文件|功能单一，速度快|
+|whereis|查找程序可执行文件、帮助文档等|不常用|
+|which|只查找程序可执行文件|常用于查找程序的绝对路径|
+
+## 文本处理
+### grep、egrep
+#### grep语法格式
+>两种形式
+>1. grep [option] [pattern] [file1,file2...] 
+>2. command | grep [option] [pattern]
+
+#### 参数
+|选项|含义|
+|:--:|:--:|
+|-v|不显示匹配行信息|
+|-i|搜索时忽略大小写|
+|-n|显示行号|
+|-r|递归搜索，会进入当前路径下的目录中也进行查找|
+|-E|支持扩展正则表达式|
+|-F|不按正则表达式匹配。按照字符串意思匹配|
+|-c|只显示匹配行总数|
+|-w|匹配整词|
+|-x|匹配整行|
+|-l|只显示文件名，不显示内容|
+|-s|不显示错误信息|
+
+#### grep和egrep
+>grep默认不支持扩展正则表达式，只支持基础正则表达式
+使用grep -E可以支持扩展正则表达式
+使用egrep可以支持扩展正则表达式，与grep -E等价
+
+### sed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
