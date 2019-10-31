@@ -1,0 +1,13 @@
+git
+1. 安装git后需要修改本地工作区
+右击git bash快捷方式并按照如下示例修改目标起始位置即可
+目标 D:\lzx\game\Git\git-bash.exe
+起始位置 D:\lzx\GitWorkSpace
+
+vscode
+1. 使用remote-ssh过程中链接的远程linux主机能会经常断开，因为linux默认ssh远程连接是3分钟无操作自动断开，是必须重新连接的。如果不想在3分钟中后断开重连，那么就需要配置ssh配置文件，将空闲时间设置的长一点
+TCPKeepAlive yes　　
+ClientAliveInterval 360　#每6分钟(360秒)向client端发个包
+ClientAliveCountMax 20　#最多发20次，这样可以保持2小时（7200秒）的连接
+2. 初次使用remotessh如果远程linux主机git版本过低可能无法链接，需要通过源码包进行升级，升级链接如下
+https://www.cnblogs.com/Hi-blog/p/How-To-Update-Git-On-CentOS7.html

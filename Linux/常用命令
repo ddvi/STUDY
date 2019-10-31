@@ -1,0 +1,17 @@
+# stdin
+给新增用户设置密码
+echo qwer | passwd --stdin 用户名
+
+# openssl
+使用mds进行加密
+1. 加密字符串：
+opssl=>输入md5回车=>输入加密字符但不要按回车，回车也会当做加密字符=>3次ctrl+d
+或echo -n 加密字符 | openssl md5
+2. 加密文件
+openssl md5 -in 文件
+
+#uptime
+查看系统运行时间
+
+#date
+date +%s 距离1970-1-1的秒数
