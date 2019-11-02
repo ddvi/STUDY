@@ -33,6 +33,79 @@ alias new_name='command'
 第二种用法是在命令后接-a参数，删除当前 Shell 进程中所有的别名。
 同样，这两种方法都是在当前 Shell 进程中生效的。要想永久删除配置文件中定义的别名，只能进入该文件手动删除。
 
+### seq
+于生成从一个数到另一个数之间的所有整数。
+
+#### 使用方式
+seq [选项]... 尾数
+seq [选项]... 首数 尾数
+seq [选项]... 首数 增量 尾数
+
+```
+#!/bin/bash
+for i in seq 1 10;
+do
+echo $i;
+done
+
+for i in $(seq 1 10)
+
+```
+
+#### 选项
+ -f, --format=FORMAT      use printf style floating-point FORMAT
+ -s, --separator=STRING   use STRING to separate numbers (default: \n)
+ -w, --equal-width        equalize width by padding with leading zeroes
+
+```
+#1
+seq -f"%3g" 9 11
+9
+10
+11
+% 后面指定数字的位数 默认是"%g",
+"%3g"那么数字位数不足部分是空格
+
+#2
+sed -f"%03g" 9 11 这样的话数字位数不足部分是0
+% 前面制定字符串
+seq -f "str%03g" 9 11
+str009
+str010
+str011-w 指定输出数字同宽 不能和-f一起用
+
+#3
+seq -w -f"str%03g" 9 11
+seq: format string may not be specified when printing equal width strings
+seq -w 98 101
+098
+099
+100
+101
+
+#4
+输出是同宽的-s 指定分隔符 默认是回车
+seq -s" " -f"str%03g" 9 11
+str009 str010 str011
+要指定t 做为分隔符号
+seq -s"echo -e "\t"" 9 11指定nn作为分隔符号
+seq -s"echo -e "\n\n"" 9 11
+19293949596979899910911
+得到的是个错误结果
+不过一般也没有这个必要 它默认的就是回车作为分隔符
+几个例子
+awk 'BEGIN { while (num < 10 ) printf "dir%03dn", ++num ; exit}' | xargs mkdir
+mkdir $(seq -f 'dir%03g' 1 10)
+
+for i in seq -f '%02g' 1 20
+do
+if ! wget -P $HOME/tmp -c http://www.xxxsite.com/photo/$i.jpg ; then
+wget -P $HOME/tmp -c $_
+fi
+done
+
+```
+
 ### echo
 是一个 Shell 内建命令，用来在终端输出字符串，并在最后默认加上换行符。
 
@@ -1382,12 +1455,12 @@ I love PYTHON
 I love python
 I love PYTHON
 >5. -i d
-sed -i '/\/sbin\/nologin//d' passwd.txt
+sed -i '/\\/sbin\\/nologin//d' passwd.txt
 >5. sed -n "/^root/p file"
 >7. a 
- sed '/\/bin\/bash/a This is user which can login to system' passwd 
+ sed '/\\/bin\\/bash/a This is user which can login to system' passwd 
 >8. i
-sed -i '/^root/,/^redis/i 123' passwd
+sed -i '/\^root/,/\^redis/i 123' passwd
 在root开头至redis开头之间的行，每行前面增加123这一行
 >9.  r
 sed -i '/^root/r list' passwd
@@ -1441,7 +1514,7 @@ Paper Of haddoop
 Google haddoop
 ```
 #### sed中引用变量注意事项
->1. 匹配模式中存在变量，则建议使用双向引号
+>1. 匹配模式中存在变量，则建议使用双引号
 ```
 [root@manman shell]# cat str.txt 
 hadoop is a big data frame
@@ -1477,7 +1550,7 @@ Google HADOOP
 
 ```
 >2. sed中需要引入自定义变量时，如果外面使用单引号，则自定义变量也必须使用单引号
-sed -i 's/'$old_str'/'$new_str'/g' str.txt
+sed -i 's/\$old_str'/'$new_str'/g' str.txt
 
 3. 如果需要匹配的包含了单引号，则必须外面使用双引号，这样才可以正确匹配到数据
 [root@manman shell]# sed -n '/'6000'/p' 1.txt 
@@ -1503,7 +1576,7 @@ sed -n '/^hdfs/p' /etc/passwd
 >5. 打印/etc/passwd中开头为root的行开始，到开头为hdfs的行结束的内容
 sed -n '/^root/,/hdfs/p' /etc/passwd
 >6. 打印/etc/passwd中第8行开始，到含有/sbin/nologin的内容行结束
-sed -n '8,/\/sbin\/nologin/p' /etc/passwd
+sed -n '8,/\\/sbin\\/nologin/p' /etc/passwd
 >7. 打印/etc/passwd中第1个包含/bin/bash内容的行开始，到第5行结束的内容
 sed -n '/\\/bin\\/bash/,5p' /etc/passwd
 
@@ -1525,17 +1598,50 @@ sed -n '/\\/bin\\/bash/,5p' /etc/passwd
 统计段中的配置项个数
 
 
+```
+#!/bin/bash
+#查询参数项名称
+function get_all_segment
+{
+    echo "`sed -n '/\[.*\]/p' /root/workspace/mooc/shell/my.cnf  |sed -e "s/\[\(.*\)\]/\1/g"`"
+    #grep "\[.*\]" my.cnf | sed -n "s/\[\(.*\)\]/\1/g;p"
+    #sed -n '/\[.*\]/p' my.cnf | sed -e "s/\[//g" -e "s/\]//g"
+}
 
 
->
->
->
->
->
->
->
->
->
+#获取所有配置模块
+function count_items_in_segment
+{
+    echo -n "`sed -n "/\[$1\]/,/\[.*\]/p" /root/workspace/mooc/shell/my.cnf | grep "=" |wc -l`"
+}
+
+for seq in `get_all_segment`; do
+    echo -n "配置项：$seq "
+    echo -n `count_items_in_segment $seq`
+    printf "\n"
+    done
+```
+####　利用sed删除文件内容
+>1. 删除/etc/passwd中的第十五行
+sed -i '15d' /etc/passwd
+>2. 删除/etc/passwd中的第八行到第十四行的所有内容
+sed -i '8,14d' /etc/passwd
+>3. 删除/etc/passwd中的不能登录的用户（筛选条件：/sbin/nologin）
+sed -i '/\/sbin\/nologin/d' /etc/passwd
+>4. 删除/etc/passwd中国以mail开头的行，到以yarn开头的行的所有内容
+sed -i '/^mail/,/^yarn/d' /etc/passwd
+>5. 删除/etc/passwd中第一个不能登录的用户，到第十三行的所有内容
+sed -i '/\/sbin\/nologin/,13d' /etc/passwd
+>6. 删除/etc/passwd中第五行到以ftp开头的行的所有内容
+sed -i '5,/^ftp/d' /etc/passwd
+>7. 删除/etc/passwd中以yarn开头到最后行的所有内容
+sed -i '/yarn/,$d' /etc/passwd
+$表示最后一行
+
+#### 典型需求
+>1. sed -i '/^[:blank:]*#/d;/^$/d' nginx.conf
+删除配置文件中所有注释行和空行
+>2. 在配置文件中所有不以#开头的行前面添加*，注意以#开头的行不添加
 >
 >
 >
@@ -2092,7 +2198,7 @@ echo "The sum is: $sum"
 
 ### for
 #### c语言风格for循环
-#### 语法
+##### 语法
 ```
 for((exp1; exp2; exp3))
 do
@@ -2104,7 +2210,7 @@ exp1、exp2、exp3 是三个表达式，其中 exp2 是判断条件，for 循环
 statements 是循环体语句，可以有一条，也可以有多条；
 do 和 done 是 Shell 中的关键字。
 
-#### 运行过程
+##### 运行过程
 1\) 先执行 exp1。
 
 2\) 再执行 exp2，如果它的判断结果是成立的，则执行循环体中的语句，否则结束整个 for 循环。
@@ -2145,20 +2251,431 @@ do
     statements
 done
 ```
-#### for循环中的三个表达式
+##### for循环中的三个表达式
 for 循环中的 exp1（初始化语句）、exp2（判断条件）和 exp3（自增或自减）都是可选项，都可以省略（但分号;必须保留）。
 
+```
+#1) 修改“从 1 加到 100 的和”的代码，省略 exp1：
+纯文本复制
+#!/bin/bash
+sum=0
+i=1
+for ((; i<=100; i++))
+do
+    ((sum += i))
+done
+echo "The sum is: $sum"
+
+#2) 省略 exp2，就没有了判断条件，如果不作其他处理就会成为死循环，我们可以在循环体内部使用 break 关键字强制结束循环：
+纯文本复制
+#!/bin/bash
+sum=0
+for ((i=1; ; i++))
+do
+    if(( i>100 )); then
+        break
+    fi
+    ((sum += i))
+done
+echo "The sum is: $sum"
+
+#3) 省略了 exp3，就不会修改 exp2 中的变量，这时可在循环体中加入修改变量的语句。例如：
+#!/bin/bash
+sum=0
+for ((i=1; i<=100; ))
+do
+    ((sum += i))
+    ((i++))
+done
+echo "The sum is: $sum"
+
+#4)同时省略三个表达式：
+纯文本复制
+#!/bin/bash
+sum=0
+i=0
+for (( ; ; ))
+do
+     if(( i>100 )); then
+        break
+    fi
+    ((sum += i))
+    ((i++))
+done
+echo "The sum is: $sum"
+```
+
+#### Python风格for in循环
+##### 语法
+```
+for variable in value_list
+do
+    statements
+done
+```
+variable 表示变量，value_list 表示取值列表，in 是 Shell 中的关键字。
+in value_list 部分可以省略，省略后的效果相当于 in $@，在「value_list 使用特殊变量」将会详细讲解。
+
+每次循环都会从 value_list 中取出一个值赋给变量 variable，然后进入循环体（do 和 done 之间的部分），执行循环体中的 statements。直到取完 value_list 中的所有值，循环就结束了。
+
+##### 对 value_list 的说明
+取值列表 value_list 的形式有多种，你可以直接给出具体的值，也可以给出一个范围，还可以使用命令产生的结果，甚至使用通配符,详细方式如下
+###### 直接给出具体的值
+可以在 in 关键字后面直接给出具体的值，多个值之间以空格分隔，比如1 2 3 4 5、"abc" "390" "tom"等。
+
+上面的代码中用一组数字作为取值列表，下面我们再演示一下用一组字符串作为取值列表：
+```
+#!/bin/bash
+for str in "1 2 3"
+do
+    echo $str
+done
+```
+###### 给出一个取值范围
+给出一个取值范围的具体格式为：
+```
+{start..end}
+```
+start 表示起始值，end 表示终止值；注意中间用两个点号相连，而不是三个点号。根据笔者的实测，这种形式只支持数字和字母。
+
+```
+#例如，计算从 1 加到 100 的和：
+纯文本复制
+#!/bin/bash
+sum=0
+for n in {1..100}
+do
+    ((sum+=n))
+done
+echo $sum
+#运行结果：
+#5050
 
 
+#输出从 A 到 z 之间的所有字符：
+纯文本复制
+#!/bin/bash
+for c in {A..z}
+do
+    printf "%c" $c
+done
+#输出结果：
+#ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz
+
+#可以发现，Shell 是根据 ASCII 码表来输出的。
+
+```
+###### 使用命令的执行结果
+使用反引号``或者\$()都可以取得命令的执行结果，我们在《Shell变量》一节中已经进行了详细讲解，并对比了两者的优缺点。本节我们使用\$()这种形式，因为它不容易产生混淆。
+
+```
+#计算从 1 到 100 之间所有偶数的和：
+纯文本复制
+#!/bin/bash
+sum=0
+for n in $(seq 2 2 100)
+do
+    ((sum+=n))
+done
+echo $sum
+#seq 是一个 Linux 命令，用来产生某个范围内的整数，并且可以设置步长，不。seq 2 2 100表示从 2 开始，每次增加 2，到 100 结束
+
+#列出当前目录下的所有 Shell 脚本文件：
+#!/bin/bash
+for filename in $(ls *.sh)
+do
+    echo $filename
+done
+#运行结果：
+#demo.sh
+#test.sh
+#abc.sh
+
+#ls 是一个 Linux 命令，用来列出当前目录下的所有文件，*.sh表示匹配后缀为.sh的文件，也就是 Shell 脚本文件。
+
+```
+###### 使用shell通配符
+Shell 通配符可以认为是一种精简化的正则表达式，通常用来匹配目录或者文件，而不是文本。详情可参考如下连接中的文档
+[Linux Shell 通配符（glob 模式）](https://www.linuxidc.com/Linux/2016-08/134192.htm)
+
+```
+#有了 Shell 通配符，不使用 ls 命令也能显示当前目录下的所有脚本文件
+纯文本复制
+#!/bin/bash
+for filename in *.sh
+do
+    echo $filename
+done
+#运行结果：
+#demo.sh
+#test.sh
+#abc.sh
+```
+###### 使用特殊变量
+Shell 中有多个特殊的变量，例如 $#、$*、$@、$?、$$ 等，在 value_list 中就可以使用它们。
+```
+#!/bin/bash
+function func(){
+    for str in $@
+    do
+        echo $str
+    done
+}
+func C++ Java Python C#
+
+#运行结果：
+C++
+Java
+Python
+C#
+```
+
+也可以省略 value_list，省略后的效果和使用$@一样。
+```
+#!/bin/bash
+function func(){
+    for str
+    do
+        echo $str
+    done
+}
+func C++ Java Python C#
+
+#运行结果：
+C++
+Java
+Python
+C#
+```
+
+### select in
+增强交互性，它可以显示出带编号的菜单，用户输入不同的编号就可以选择不同的菜单，并执行不同的功能。
+是 Shell 独有的一种循环，非常适合终端（Terminal）这样的交互场景
+
+#### 用法
+```
+select variable in value_list
+do
+    statements
+done
+```
+variable 表示变量，value_list 表示取值列表，in 是 Shell 中的关键字。select in 和 for in 的语法相似。
+
+```
+#例1
+#!/bin/bash
+echo "What is your favourite OS?"
+select name in "Linux" "Windows" "Mac OS" "UNIX" "Android"
+do
+    echo $name
+done
+echo "You have selected $name"
+
+运行结果：
+What is your favourite OS?
+1) Linux
+2) Windows
+3) Mac OS
+4) UNIX
+5) Android
+#? 4↙
+You have selected UNIX
+#? 1↙
+You have selected Linux
+#? 9↙
+You have selected
+#? 2↙
+You have selected Windows
+#?^D
+```
+\#?用来提示用户输入菜单编号；^D表示按下 Ctrl+D 组合键，它的作用是结束 select in 循环。
+
+运行到 select 语句后，取值列表 value_list 中的内容会以菜单的形式显示出来，用户输入菜单编号，就表示选中了某个值，这个值就会赋给变量 variable，然后再执行循环体中的 statements（do 和 done 之间的部分）。
+
+每次循环时 select 都会要求用户输入菜单编号，并使用环境变量 PS3 的值作为提示符，PS3 的默认值为#?，修改 PS3 的值就可以修改提示符。
+
+如果用户输入的菜单编号不在范围之内，例如上面我们输入的 9，那么就会给 variable 赋一个空值；如果用户输入一个空值（什么也不输入，直接回车），会重新显示一遍菜单。
+
+注意，select 是无限循环（死循环），输入空值，或者输入的值无效，都不会结束循环，只有遇到 break 语句，或者按下 Ctrl+D 组合键才能结束循环。
+
+#### select in 和 case in
+select in 通常和 case in 一起使用，在用户输入不同的编号时可以做出不同的反应。
+
+```
+#!/bin/bash
+echo "What is your favourite OS?"
+select name in "Linux" "Windows" "Mac OS" "UNIX" "Android"
+do
+    case $name in
+        "Linux")
+            echo "Linux是一个类UNIX操作系统，它开源免费，运行在各种服务器设备和嵌入式设备。"
+            break
+            ;;
+        "Windows")
+            echo "Windows是微软开发的个人电脑操作系统，它是闭源收费的。"
+            break
+            ;;
+        "Mac OS")
+            echo "Mac OS是苹果公司基于UNIX开发的一款图形界面操作系统，只能运行与苹果提供的硬件之上。"
+            break
+            ;;
+        "UNIX")
+            echo "UNIX是操作系统的开山鼻祖，现在已经逐渐退出历史舞台，只应用在特殊场合。"
+            break
+            ;;
+        "Android")
+            echo "Android是由Google开发的手机操作系统，目前已经占据了70%的市场份额。"
+            break
+            ;;
+        *)
+            echo "输入错误，请重新输入"
+    esac
+done
+```
+
+### break和continue跳出循环
+使用 while、until、for、select 循环时，如果想提前结束循环（在不满足结束条件的情况下结束循环），可以使用 break 或者 continue 关键字。
+
+在C语言、C++、C#、Python、Java 等大部分编程语言中，break 和 continue 只能跳出当前层次的循环，内层循环中的 break 和 continue 对外层循环不起作用；但是 Shell 中的 break 和 continue 却能够跳出多层循环，也就是说，内层循环中的 break 和 continue 能够跳出外层循环。
+
+在实际开发中，break 和 continue 一般只用来跳出当前层次的循环，很少有需要跳出多层循环的情况。
+
+#### break 关键字
+##### 用法
+```
+break n
+```
+n 表示跳出循环的层数，如果省略 n，则表示跳出当前的整个循环。break 关键字通常和 if 语句一起使用，即满足条件时便跳出循环。
+![](http://guanxiaoman.cn-sh2.ufileos.com/Shell%2Fshell-2.png)
+
+```
+#【实例1】不断从终端读取用户输入的正数，求它们相加的和：
+#!/bin/bash
+sum=0
+while read n; do
+    if((n>0)); then
+        ((sum+=n))
+    else
+        break
+    fi
+done
+echo "sum=$sum"
+
+#while 循环通过 read 命令的退出状态来判断循环条件是否成立，只有当按下 Ctrl+D 组合键（表示输入结束）时，read n才会判断失败，此时 while 循环终止。
+#除了按下 Ctrl+D 组合键，你还可以输入一个小于等于零的整数，这样会执行 break 语句来终止循环（跳出循环）。
+
+#【实例2】使用 break 跳出双层循环。
+
+如果 break 后面不跟数字的话，表示跳出当前循环，对于有两层嵌套的循环，就得使用两个 break 关键字。例如，输出一个 4*4 的矩阵：
+纯文本复制
+#!/bin/bash
+i=0
+while ((++i)); do  #外层循环
+    if((i>4)); then
+        break  #跳出外层循环
+    fi
+    j=0;
+    while ((++j)); do  #内层循环
+        if((j>4)); then
+            break  #跳出内层循环
+        fi
+        printf "%-4d" $((i*j))
+    done
+    printf "\n"
+done
+#当 j>4 成立时，执行第二个 break，跳出内层循环；外层循环依然执行，直到 i>4 成立，跳出外层循环。内层循环共执行了 4 次，外层循环共执行了 1 次。
 
 
+也可以在 break 后面跟一个数字，让它一次性地跳出两层循环，请看下面的代码：
+纯文本复制
+#!/bin/bash
+i=0
+while ((++i)); do  #外层循环
+    j=0;
+    while ((++j)); do  #内层循环
+        if((i>4)); then
+            break 2  #跳出内外两层循环
+        fi
+        if((j>4)); then
+            break  #跳出内层循环
+        fi
+        printf "%-4d" $((i*j))
+        #左对齐,不足4位右边补空格,超过4位,原样输出。 如果没有前面的负号,那么表示右对齐,不足四位左边补齐空格
+    done
+    printf "\n"
+done
+修改后的代码将所有 break 都移到了内层循环里面。读者需要重点关注break 2这条语句，它使得程序可以一次性跳出两层循环，也就是先跳出内层循环，再跳出外层循环。
 
 
+#另一种方式
+#!/bin/bash
+for ((i=1;i<=4;i++)); do
+    for ((j=1;j<=4;j++)); do
+        echo -n "$((j*i)) "
+    done
+    echo ""   
+done
 
+```
 
+#### continue
+##### 用法
+```
+continue n
+```
 
+n 表示循环的层数：
+如果省略 n，则表示 continue 只对当前层次的循环语句有效，遇到 continue 会跳过本次循环，忽略本次循环的剩余代码，直接进入下一次循环。
+如果带上 n，比如 n 的值为 2，那么 continue 对内层和外层循环语句都有效，不但内层会跳过本次循环，外层也会跳过本次循环，其效果相当于内层循环和外层循环同时执行了不带 n 的 continue。这么说可能有点难以理解，稍后我们通过代码来演示。
 
+continue 关键字也通常和 if 语句一起使用，即满足条件时便跳出循环。 
+![](http://guanxiaoman.cn-sh2.ufileos.com/Shell%2Fshell-3.png)
 
+```
+【实例1】不断从终端读取用户输入的 100 以内的正数，求它们的和：
+#!/bin/bash
+sum=0
+while read n; do
+    if((n<1 || n>100)); then
+        continue
+    fi
+    ((sum+=n))
+done
+echo "sum=$sum"
+运行结果：
+10↙
+20↙
+-1000↙
+5↙
+9999↙
+25↙
+sum=60
+
+变量 sum 最终的值为 60，-1000 和 9999 并没有计算在内，这是因为 -1000 和 9999 不在 1~100 的范围内，if 判断条件成立，所以执行了 continue 语句，跳过了当次循环，也就是跳过了((sum+=n))这条语句。
+
+注意，只有按下 Ctrl+D 组合键输入才会结束，read n才会判断失败，while 循环才会终止。
+
+【实例2】使用 continue 跳出多层循环，请看下面的代码：
+#!/bin/bash
+for((i=1; i<=5; i++)); do
+    for((j=1; j<=5; j++)); do
+        if((i*j==12)); then
+            continue 2
+        fi
+        printf "%d*%d=%-4d" $i $j $((i*j))
+    done
+    printf "\n"
+done
+运行结果：
+1*1=1   1*2=2   1*3=3   1*4=4   1*5=5  
+2*1=2   2*2=4   2*3=6   2*4=8   2*5=10 
+3*1=3   3*2=6   3*3=9   4*1=4   4*2=8   
+5*1=5   5*2=10  5*3=15  5*4=20  5*5=25
+从运行结果可以看出，遇到continue 2时，不但跳过了内层 for 循环，也跳过了外层 for 循环。
+```
+
+#### break 和 continue 的区别
+break 用来结束所有循环，循环语句不再有执行的机会；continue 用来结束本次循环，直接跳到下一次循环，如果循环条件成立，还会继续循环。
 
 
 
