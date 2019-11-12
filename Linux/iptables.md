@@ -1,0 +1,8 @@
+#iptables
+## iptables是防火墙么
+iptables其实不是真正的防火墙，可以认为是一个客户端代理，将用户的安全设定执行到对应的安全框架（framework）中，这个安全框架才是真正的防火墙，即netfilter
+
+netfilter位于内核空间
+iptables其实是一个命令行工具，位于用户空间，我们用这个工具操作真正的框架
+
+Netfilter是Linux操作系统核心层内部的一个数据包处理模块，它具有如下功能
