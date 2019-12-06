@@ -52,6 +52,113 @@ rename table oldname to newname;
 
 因此，在开发中,优化往往是 把频繁用到的信息,优先考虑效率,存储到一张表中.
 不常用的信息和比较占据空间的信息,优先考虑空间占用,存储到辅表中.
+
+为什么建表时,加not null default '' / default 0
+答:不想让表中出现null值.
+
+为什么不想要的null的值
+答:不好比较,null是一种类型,比较时,只能用专门的is null 和 is not null来比较.
+碰到运算符,一律返回null
+效率不高,影响提高索引效果.
+
+难以对比查询
+
+因此,我们往往,在建表时 not null default ''/0
+```
+#创建测试表
+mysql> create table test9 (
+    -> sname varchar(20)
+    -> )engine myisam charset utf8;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> insert into test9 values ('lisi'),('wangwu'),('null');
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+#下面的null不是真的null，是字符串
+mysql> select * from test9;
++--------+
+| sname  |
++--------+
+| lisi   |
+| wangwu |
+| null   |
++--------+
+3 rows in set (0.00 sec)
+
+#插入NULL
+mysql> insert into test9 values (NULL);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from test9;
++--------+
+| sname  |
++--------+
+| lisi   |
+| wangwu |
+| null   |
+| NULL   |
++--------+
+4 rows in set (0.00 sec)
+
+mysql> delete from test9 where sname='null';
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from test9;
++--------+
+| sname  |
++--------+
+| lisi   |
+| wangwu |
+| NULL   |
++--------+
+3 rows in set (0.00 sec)
+
+#错误用法
+#查询出用户名不为null或为null的行
+mysql> select * from test9  where sname!=null;
+Empty set (0.00 sec)
+
+mysql> select * from test9  where sname=null;
+Empty set (0.00 sec)
+
+mysql> select 'lisi'=null;
++-------------+
+| 'lisi'=null |
++-------------+
+|        NULL |
++-------------+
+1 row in set (0.00 sec)
+
+mysql> select null=null;
++-----------+
+| null=null |
++-----------+
+|      NULL |
++-----------+
+1 row in set (0.00 sec)
+
+mysql> select null!=null;
++------------+
+| null!=null |
++------------+
+|       NULL |
++------------+
+1 row in set (0.00 sec)
+
+#正确用法
+#null的比较需要用特殊的运算符 is null,is not null
+mysql> select * from test9 where sname is not null;
++--------+
+| sname  |
++--------+
+| lisi   |
+| wangwu |
++--------+
+2 rows in set (0.00 sec)
+```
+
+
 ```
 #格式
 　create table tbName (
@@ -790,7 +897,9 @@ select * from class;
 a. 条件表达式的意义，表达式为真，则该行取出
 b.  比较运算符  =(<>) ，!=，< > <=  >=
 c.  like , not like ('%'匹配任意多个字符,'_'匹配任意单个字符) 
-    in , not in , between and
+    in , not in , （某集合内） 
+    between and   （某范围内  ）
+    优先级 between > and > or
 d. is null , is not null	
 2. 分组 group by 
         一般要配合5个聚合函数使用:max(求最大),min(求最小),sum(求总和),avg(求平均),count(求总行数)
@@ -963,6 +1072,8 @@ select goods_id,goods_name,shop_price
 ```
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods
      where cat_id!=3;
+#不要用not in （3）  效率比较低
+#"="等同于 "<>"
 ```
 1.3:本店价格高于3000元的商品
 ```
@@ -982,7 +1093,7 @@ select goods_id,cat_id,goods_name,shop_price  from ecs_goods
 1.6:取出100<=价格<=500的商品(不许用and)
 ```
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods
-     where shop_price between 100 and 500;   区间 
+     where shop_price between 100 and 500;   区间,包括边界值
 ```
 
 1.7:取出不属于第3栏目且不属于第11栏目的商品(and,或not in分别实现)
@@ -994,32 +1105,47 @@ select goods_id,cat_id,goods_name,shop_price  from ecs_goods     where cat_id no
 
 
 1.8:取出价格大于100且小于300,或者大于4000且小于5000的商品()
+```
+#and优先级大于or
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods where shop_price>100 and shop_price <300 or shop_price >4000 and shop_price <5000;
-
-
+```
 
 1.9:取出第3个栏目下面价格<1000或>3000,并且点击量>5的系列商品
+```
 select goods_id,cat_id,goods_name,shop_price,click_count from ecs_goods where
 cat_id=3 and (shop_price <1000 or shop_price>3000) and click_count>5;
+```
 
 1.10:取出第1个栏目下面的商品(注意:1栏目下面没商品,但其子栏目下有)
+```
 select goods_id,cat_id,goods_name,shop_price,click_count from ecs_goods
      where cat_id in (2,3,4,5);
+```
 
 1.11:取出名字以"诺基亚"开头的商品
+```
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods     where goods_name like '诺基亚%';
-
+```
 
 1.12:取出名字为"诺基亚Nxx"的手机
+```
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods  
    where goods_name like '诺基亚N__';
-
+```
 
 1.13:取出名字不以"诺基亚"开头的商品
+```
 select goods_id,cat_id,goods_name,shop_price from ecs_goos
      where goods_name not like '诺基亚%';
 
+#其他
+update goods set goods_name = 'HTC' where goods_name like '诺基亚%';
+
+#只将诺基亚替换为HTC，其他不变
+update goods set goods_name = concat('HTC',substring(goods_name,3)) where goods_name like '诺基亚%';
+```
 1.14:取出第3个栏目下面价格在1000到3000之间,并且点击量>5 "诺基亚"开头的系列商品
+```
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods where 
 cat_id=3 and shop_price>1000 and shop_price <3000 and click_count>5 and goods_name like '诺基亚%';
 
@@ -1027,11 +1153,16 @@ cat_id=3 and shop_price>1000 and shop_price <3000 and click_count>5 and goods_na
 select goods_id,cat_id,goods_name,shop_price  from ecs_goods where 
 shop_price between 1000 and 3000 and cat_id=3  and click_count>5 and goods_name like '诺基亚%';
 
-
+```
 1.15 一道面试题
 有如下表和数组
 把num值处于[20,29]之间,改为20
 num值处于[30,39]之间的,改为30
+
+```
+#把num当成变量看，num/10取整，再乘以10
+mysql> update mian set num=floor(num/10)*10 where num between 20 and 40;
+```
 
 mian表
 +------+
@@ -1055,31 +1186,94 @@ mian表
 把good表中商品名为'诺基亚xxxx'的商品,改为'HTCxxxx',
 提示:大胆的把列看成变量,参与运算,甚至调用函数来处理 .
 substring(),concat()
+```
+update goods set goods_name = concat('HTC',substring(goods_name,4)) where goods_name like '诺基亚%';
+```
+
+### sql查询模型理解
+列就是变量，在每一行上，列的值都在变化
+where 条件是表达式，在哪一行上表达式为真，哪一行就去出来
+
+取出商品id，商品名，本店价比市场价省的钱
+```
+select goods_id,goods_name,cat_id,shop_price,market_price,market_price-shop_price from goods;
++----------+----------------------------------------+--------+------------+--------------+-------------------------+
+| goods_id | goods_name                             | cat_id | shop_price | market_price | market_price-shop_price |
++----------+----------------------------------------+--------+------------+--------------+-------------------------+
+|        1 | kd876                                  |      4 |    1388.00 |      1665.60 |                  277.60 |
+|        4 | 诺基亚n85原装充电器                    |      8 |      58.00 |        69.60 |                   11.60 |
+```
+表里面原来没有market_price-shop_price 列
+这一列是一个运算结果，术语叫做广义投影 
+把列看成变量运算即可
+列的运算结果可以当成列看，还可以起个列别名
+```
+mysql> select goods_id,goods_name,cat_id,shop_price,market_price,(market_price-shop_price) as discount from goods;
++----------+----------------------------------------+--------+------------+--------------+----------+
+| goods_id | goods_name                             | cat_id | shop_price | market_price | discount |
++----------+----------------------------------------+--------+------------+--------------+----------+
+|        1 | kd876                                  |      4 |    1388.00 |      1665.60 |   277.60 |
+|        4 | 诺基亚n85原装充电器                    |      8 |      58.00 |        69.60 |    11.60 |
+```
+
+查出本店价比市场省的钱而且省200以上的商品
+```
+mysql> select goods_id,goods_name,cat_id,shop_price,market_price,(market_price-shop_price) as discount from goods where (market_price-shop_price) > 200;
++----------+---------------------------+--------+------------+--------------+----------+
+| goods_id | goods_name                | cat_id | shop_price | market_price | discount |
++----------+---------------------------+--------+------------+--------------+----------+
+|        1 | kd876                     |      4 |    1388.00 |      1665.60 |   277.60 |
+|        9 | 诺基亚e66                 |      3 |    2298.00 |      2757.60 |   459.60 |
+
+#where后判断不能直接接discount
+#因为where是对表中数据发挥作用，查询出数据来
+#where发挥作用时，表上，对于结果中的列，如果再想筛选，须用having
+
+mysql> select goods_id,goods_name,cat_id,shop_price,market_price,(market_price-shop_price) as discount from goods where discount > 200; 
+ERROR 1054 (42S22): Unknown column 'discount' in 'where clause'
+```
 
 
-2	分组查询group:
+###	分组查询group:
 2.1:查出最贵的商品的价格
+```
 select max(shop_price) from ecs_goods;
+```
 
 2.2:查出最大(最新)的商品编号
+```
 select max(goods_id) from ecs_goods;
+```
 
 2.3:查出最便宜的商品的价格
+```
 select min(shop_price) from ecs_goods;
-
+```
 2.4:查出最旧(最小)的商品编号
+```
 select min(goods_id) from ecs_goods;
-
+```
 2.5:查询该店所有商品的库存总量
+```
 select sum(goods_number) from ecs_goods;
-
+```
 2.6:查询所有商品的平均价
- select avg(shop_price) from ecs_goods;
-
+```
+select avg(shop_price) from ecs_goods;
+```
 2.7:查询该店一共有多少种商品
- select count(*) from ecs_goods;
+```
+select count(*) from ecs_goods;
+#select count(*) from 表名, 查询的就是绝对的行数,哪怕某一行所有字段全为NULL,也计算在内.
+而select couht(列名) from 表名,
+查询的是该列不为null的所有行的行数.
+#count 只能统计行数，没有判断功能，如count(a<10)是无法实现的
 
-
+#用count(*),count(1),谁好呢?
+其实,对于myisam引擎的表,没有区别的.
+这种引擎内部有一计数器在维护着行数.
+Innodb的表,用count(*)直接读行数,效率很低,因为innodb真的要去数一遍.
+```
 2.8:查询每个栏目下面
 最贵商品价格
 最低商品价格
@@ -1087,36 +1281,67 @@ select sum(goods_number) from ecs_goods;
 商品库存量
 商品种类
 提示:(5个聚合函数,sum,avg,max,min,count与group综合运用)
+```
 select cat_id,max(shop_price) from ecs_goods  group by cat_id;
+```
+注:
+全班同学排队,
+校长对老师说: 统计班级同学的姓名和平均年龄[返回1行]
+语义上的疑问: 平均年龄好算,只有一个结果,但是,把谁的姓名和平均年龄放在一块返回呢?
+
+这是mysql的一个特点,出于可移植性和规范性,不推荐这么写.
+严格的讲,以group by  a,b,c 为列,则select的列,只能在a,b,c里选择,语义上才没有矛盾.
 
 
-3 having与group综合运用查询:
+### havings筛选
+#### 查询过程
+表
+==》通过where(针对表操作)查询出满足条件行,   不是结果集，因为还没有运算完毕
+==》分组统计group by,并及进行列之间计算,别名 max,avg
+select        结果集
+==》通过having(针对结果集操作)对结果再次进行筛选   最终结果集 
+==》排序 order by
+==》限制条目 limit
+
+where,group by,having,order by,limit
+### having与group综合运用查询:
 3.1:查询该店的商品比市场价所节省的价格
+```
 select goods_id,goods_name,market_price-shop_price as j 
      from ecs_goods ;
-
+```
 
 3.2:查询每个商品所积压的货款(提示:库存*单价)
+```
 select goods_id,goods_name,goods_number*shop_price  from ecs_goods
-
+```
 3.3:查询该店积压的总货款
+```
 select sum(goods_number*shop_price) from ecs_goods;
-
+```
 3.4:查询该店每个栏目下面积压的货款.
+```
 select cat_id,sum(goods_number*shop_price) as k from ecs_goods group by cat_id;
-
-3.5:查询比市场价省钱200元以上的商品及该商品所省的钱(where和having分别实现)
+```
+3.5:查询出栏目的积压货款金额，且筛选出积压金额>20000的栏目
+```
+select cat_id,sum(goods_number*shop_price) as k 
+from ecs_goods 
+group by cat_id having k >20000;
+```
+3.6:查询比市场价省钱200元以上的商品及该商品所省的钱(where和having分别实现)
+```
 select goods_id,goods_name,market_price-shop_price  as k from ecs_goods
 where market_price-shop_price >200;
 
 select goods_id,goods_name,market_price-shop_price  as k from ecs_goods
 having k >200;
-
-3.6:查询积压货款超过2W元的栏目,以及该栏目积压的货款
+``` 
+3.7:查询积压货款超过2W元的栏目,以及该栏目积压的货款
 select cat_id,sum(goods_number*shop_price) as k from ecs_goods group by cat_id
 having k>20000
 
-3.7:where-having-group综合练习题
+3.8:where-having-group综合练习题
 有如下表及数据
 +------+---------+-------+
 | name | subject | score |
@@ -1130,26 +1355,8 @@ having k>20000
 +------+---------+-------+
 
 要求:查询出2门及2门以上不及格者的平均成绩
-
-## 一种错误做法
-mysql> select name,count(score<60) as k,avg(score) from stu group by name having k>=2;
-+------+---+------------+
-| name | k | avg(score) |
-+------+---+------------+
-| 张三     | 3 |    60.0000 |
-| 李四     | 2 |    50.0000 |
-+------+---+------------+
-2 rows in set (0.00 sec)
-
-mysql> select name,count(score<60) as k,avg(score) from stu group by name;
-+------+---+------------+
-| name | k | avg(score) |
-+------+---+------------+
-| 张三     | 3 |    60.0000 |
-| 李四     | 2 |    50.0000 |
-| 王五     | 1 |    30.0000 |
-+------+---+------------+
-3 rows in set (0.00 sec)
+```
+## 一种错误做法（count用法错误）
 
 mysql> select name,count(score<60) as k,avg(score) from stu group by name having k>=2;
 +------+---+------------+
@@ -1160,27 +1367,11 @@ mysql> select name,count(score<60) as k,avg(score) from stu group by name having
 +------+---+------------+
 2 rows in set (0.00 sec)
 
-#加上赵六后错误暴露
-mysql> insert into stu 
-    -> values 
-    -> ('赵六','A',100),
-    -> ('赵六','B',99),
-    -> ('赵六','C',98);
-Query OK, 3 rows affected (0.05 sec)
-Records: 3  Duplicates: 0  Warnings: 0
-
-#错误显现
-mysql> select name,count(score<60) as k,avg(score) from stu group by name having k>=2;
-+------+---+------------+
-| name | k | avg(score) |
-+------+---+------------+
-| 张三 | 3 |    60.0000 |
-| 李四 | 2 |    50.0000 |
-| 赵六 | 3 |    99.0000 |
-+------+---+------------+
-3 rows in set (0.00 sec)
-
-#正确思路,先查看每个人的平均成绩
+```
+正确思路
+```
+逆向思维，先查看所有人平均成绩再筛选
+#先查看每个人的平均成绩
 mysql> select name,avg(score) from stu group by name;
 +------+------------+
 | name | avg(score) |
@@ -1242,50 +1433,495 @@ mysql> select name,sum(score < 60) as gk ,avg(score) as pj from stu group by nam
 | 李四 |    2 | 50.0000 |
 +------+------+---------+
 2 rows in set (0.00 sec)
+```
+```
+正向思维：语句繁琐
+先找出谁的挂科数大于等于2，再求这些人的平均分
 
+#先找挂科数大于等于2的那些人
+mysql> select name,count(1) as gks from result where score<60 group by name having gks >=2;
++--------+-----+
+| name   | gks |
++--------+-----+
+| 张三   |   2 |
+| 李四   |   2 |
++--------+-----+
+2 rows in set (0.00 sec)
 
+#结果集可以当成表用,必须声明成一个表
+mysql> select name from (select name,count(1) as gks from result where score<60 group by name having gks >=2) as tmp;
++--------+
+| name   |
++--------+
+| 张三   |
+| 李四   |
++--------+
+2 rows in set (0.04 sec)
 
-4:	order by 与 limit查询
+#最终三层嵌套的子查询
+mysql> select name,avg(score) 
+from result 
+where name in (select name from (select name,count(1) as gks from result where score<60 
+group by name 
+having gks >=2) as tmp) 
+group by name;
++--------+------------+
+| name   | avg(score) |
++--------+------------+
+| 张三   |    60.0000 |
+| 李四   |    50.0000 |
++--------+------------+
+2 rows in set (0.02 sec)
+```
+
+###	order by 与 limit查询
+#### Order by 
+当最终结果集出来后,可以进行排序.
+排序的语法:
+Order by 结果集中的列名 desc/asc
+
+例:order by shop_price desc ,按价格降序排列
+Order by add_time asc ,按发布时间升序排列.
+
 4.1:按价格由高到低排序
+```
 select goods_id,goods_name,shop_price from ecs_goods order by shop_price desc;
-
+#desc 降序
+```
 4.2:按发布时间由早到晚排序
+```
 select goods_id,goods_name,add_time from ecs_goods order by add_time;
+```
+多字段排序也很容易
+Order by 列1 desc/asc , 列2 desc/asc  , 列3 desc/asc
+
+
 
 4.3:接栏目由低到高排序,栏目内部按价格由高到低排序
-select goods_id,cat_id,goods_name,shop_price from ecs_goods
-     order by cat_id ,shop_price desc;
+```
+select goods_id,cat_id,goods_name,shop_price from goods
+     order by cat_id asc,shop_price desc;
+```
+#### Limit 
+在语句的最后, 起到限制条目的作用
 
+Limit [offset,] N
+Offset: 偏移量,----跳过几行
+N: 取出条目
+Offset,如果不写,则相当于  limit 0,N
 
 4.4:取出价格最高的前三名商品
-select goods_id,goods_name,shop_price from ecs_goods order by shop_price desc limit 3;
-
-
-
+```
+select goods_id,goods_name,shop_price from ecs_goods order by shop_price desc limit 0,3;
+```
 4.5:取出点击量前三名到前5名的商品
+```
 select goods_id,goods_name,click_count from ecs_goods order by click_count desc limit 2,3;
+```
 
-5	连接查询
+### 子查询
+良好的理解模型
+Where 表达式  ,把表达式放在行中,看表达式是否为真
+列: 理解成变量,可以运算
+取出结果: 可以理解成一张临时表
+
+#### Where型子查询
+指把内层查询的结果作为外层查询的比较条件.
+典型题:查询最大商品,最贵商品
+
+如果 where 列=(内层sql),则内层sql返回的必是单行单列,单个值
+如果 where 列 in (内层sql), 则内层sql只返回单列,可以多行.
+
+思考: 取出每个栏目下的最新（goods_id最大的商品???
+1个select语句实现, 
+```
+mysql> select goods_id,cat_id,goods_name,shop_price from goods 
+where goods_id in 
+(select max(goods_id) from goods group by cat_id);+----------+--------+----------------------------------------+------------+
+| goods_id | cat_id | goods_name                             | shop_price |
++----------+--------+----------------------------------------+------------+
+|        6 |     11 | 胜创kingmax内存卡                      |      42.00 |
+|        7 |      8 | 诺基亚n85原装立体声耳机hs-82           |     100.00 |
+|       16 |      2 | 恒基伟业g101                           |     823.33 |
+|       18 |      4 | 夏新t5                                 |    2878.00 |
+|       23 |      5 | 诺基亚n96                              |    3700.00 |
+|       26 |     13 | 小灵通/固话20元充值卡                  |      19.00 |
+|       28 |     15 | 联通50元充值卡                         |      45.00 |
+|       30 |     14 | 移动20元充值卡                         |      18.00 |
+|       32 |      3 | 诺基亚n85                              |    3010.00 |
++----------+--------+----------------------------------------+------------+
+```
+#### From 型子查询
+把内层的查询结果当成临时表,供外层sql再次查询
+典型题:查询每个栏目下的最新/最贵商品
+
+返回值是一张表必须用别名
+
+#### Exists子查询
+把外层的查询结果,拿到内层,看内层的查询是否成立,成立则取出。
+典型题: 查询有商品的栏目
+
+```
+#设某栏目cat_id为N，则select * from goods where cat_id=N
+#能取出数据，则书名该栏目有商品
+mysql> select * from category;
++--------+---------------------------+-----------+
+| cat_id | cat_name                  | parent_id |
++--------+---------------------------+-----------+
+|      1 | 手机类型                  |         0 |
+|      2 | CDMA手机                  |         1 |
+|      3 | GSM手机                   |         1 |
+|      4 | 3G手机                    |         1 |
+|      5 | 双模手机                  |         1 |
+|      6 | 手机配件                  |         0 |
+|      7 | 充电器                    |         6 |
+|      8 | 耳机                      |         6 |
+|      9 | 电池                      |         6 |
+|     11 | 读卡器和内存卡            |         6 |
+|     12 | 充值卡                    |         0 |
+|     13 | 小灵通/固话充值卡         |        12 |
+|     14 | 移动手机充值卡            |        12 |
+|     15 | 联通手机充值卡            |        12 |
++--------+---------------------------+-----------+
+14 rows in set (0.00 sec)
+mysql> select cat_id,cat_name from category where exists (select * from goods where goods.cat_id=category.cat_id);
++--------+---------------------------+
+| cat_id | cat_name                  |
++--------+---------------------------+
+|      2 | CDMA手机                  |
+|      3 | GSM手机                   |
+|      4 | 3G手机                    |
+|      5 | 双模手机                  |
+|      8 | 耳机                      |
+|     11 | 读卡器和内存卡            |
+|     13 | 小灵通/固话充值卡         |
+|     14 | 移动手机充值卡            |
+|     15 | 联通手机充值卡            |
++--------+---------------------------+
+9 rows in set (0.00 sec)
+```
+
+
+
+###	连接查询
+#### 集合
+特点：无序性，唯一性
+运算：并集、交集、笛卡尔积（两集合的元素，两两组合，不是做乘法）
+例：
+集合a:2,3,5
+集合b：4，7
+    集合a*b 
+    (2,4),(2,7)
+    (3,4)(3,7)
+    (5,4)(5,7)
+
+即：
+集合a有m个元素
+集合b有n个元素
+a*b=c
+则c有m*n个元素
+
+表与集合的关系
+一张表就是一个集合，每一行就是集合的一个元素
+
+疑问：集合不能重复，但我有可能两行数据完全一样
+mysql内部每一行还有一个rowid
+
+在数据操作上，如何操作表完成集合相乘？
+直接使用","，隔开表名，查询即可
+
+两表做全相乘
+从行的角度来看：就是两表每一行，两两组合
+从列的角度看，结果集中的列，是两表列名的相加
+
+```
+mysql> create table minigoods like goods;
+Query OK, 0 rows affected (0.03 sec)
+
+mysql> insert into minigoods 
+    -> select * from goods limit 3;
+Query OK, 3 rows affected (0.01 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> select * from minigoods;
++----------+-----------------------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+| goods_id | goods_name                  | cat_id | brand_id | goods_sn  | goods_number | shop_price | market_price | click_count |
++----------+-----------------------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+|        1 | kd876                       |      4 |        8 | ecs000000 |            1 |    1388.00 |      1665.60 |           9 |
+|        4 | 诺基亚n85原装充电器         |      8 |        1 | ecs000004 |           17 |      58.00 |        69.60 |           0 |
+|        3 | 诺基亚原装5800耳机          |      8 |        1 | ecs000002 |           24 |      68.00 |        81.60 |           3 |
++----------+-----------------------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+3 rows in set (0.01 sec)
+```
+作全相乘时,也可以有针对性的取出某几列.
+```
+mysql> select goods_id,cat_id,goods_name,cat_id,cat_name from minigoods,category;
+ERROR 1052 (23000): Column 'cat_id' in field list is ambiguous
+#ambiguous的意思是模糊的
+#cat_id在两张表都有，到底是之哪张表的cat_id字段？
+#如果在多表联查时，某一列名在两张或以上表都有，需要在列名前指定表名，即"表名.列名"
+mysql> select goods_id,minigoods.cat_id,goods_name,category.cat_id,cat_name from minigoods,category;
++----------+--------+-----------------------------+--------+---------------------------+
+| goods_id | cat_id | goods_name                  | cat_id | cat_name                  |
++----------+--------+-----------------------------+--------+---------------------------+
+|        1 |      4 | kd876                       |      1 | 手机类型                  |
+|        4 |      8 | 诺基亚n85原装充电器         |      1 | 手机类型                  |
+|        3 |      8 | 诺基亚原装5800耳机          |      1 | 手机类型                  |
+|        1 |      4 | kd876                       |      2 | CDMA手机                  |
+|        4 |      8 | 诺基亚n85原装充电器         |      2 | CDMA手机                  |
+|        3 |      8 | 诺基亚原装5800耳机          |      2 | CDMA手机                  |
+|        1 |      4 | kd876                       |      3 | GSM手机                   |
+|        4 |      8 | 诺基亚n85原装充电器         |      3 | GSM手机                   |
+|        3 |      8 | 诺基亚原装5800耳机          |      3 | GSM手机                   |
+|        1 |      4 | kd876                       |      4 | 3G手机                    |
+|        4 |      8 | 诺基亚n85原装充电器         |      4 | 3G手机                    |
+|        3 |      8 | 诺基亚原装5800耳机          |      4 | 3G手机                    |
+|        1 |      4 | kd876                       |      5 | 双模手机                  |
+|        4 |      8 | 诺基亚n85原装充电器         |      5 | 双模手机                  |
+|        3 |      8 | 诺基亚原装5800耳机          |      5 | 双模手机                  |
+|        1 |      4 | kd876                       |      6 | 手机配件                  |
+|        4 |      8 | 诺基亚n85原装充电器         |      6 | 手机配件                  |
+|        3 |      8 | 诺基亚原装5800耳机          |      6 | 手机配件                  |
+|        1 |      4 | kd876                       |      7 | 充电器                    |
+|        4 |      8 | 诺基亚n85原装充电器         |      7 | 充电器                    |
+|        3 |      8 | 诺基亚原装5800耳机          |      7 | 充电器                    |
+|        1 |      4 | kd876                       |      8 | 耳机                      |
+|        4 |      8 | 诺基亚n85原装充电器         |      8 | 耳机                      |
+|        3 |      8 | 诺基亚原装5800耳机          |      8 | 耳机                      |
+|        1 |      4 | kd876                       |      9 | 电池                      |
+|        4 |      8 | 诺基亚n85原装充电器         |      9 | 电池                      |
+|        3 |      8 | 诺基亚原装5800耳机          |      9 | 电池                      |
+|        1 |      4 | kd876                       |     11 | 读卡器和内存卡            |
+|        4 |      8 | 诺基亚n85原装充电器         |     11 | 读卡器和内存卡            |
+|        3 |      8 | 诺基亚原装5800耳机          |     11 | 读卡器和内存卡            |
+|        1 |      4 | kd876                       |     12 | 充值卡                    |
+|        4 |      8 | 诺基亚n85原装充电器         |     12 | 充值卡                    |
+|        3 |      8 | 诺基亚原装5800耳机          |     12 | 充值卡                    |
+|        1 |      4 | kd876                       |     13 | 小灵通/固话充值卡         |
+|        4 |      8 | 诺基亚n85原装充电器         |     13 | 小灵通/固话充值卡         |
+|        3 |      8 | 诺基亚原装5800耳机          |     13 | 小灵通/固话充值卡         |
+|        1 |      4 | kd876                       |     14 | 移动手机充值卡            |
+|        4 |      8 | 诺基亚n85原装充电器         |     14 | 移动手机充值卡            |
+|        3 |      8 | 诺基亚原装5800耳机          |     14 | 移动手机充值卡            |
+|        1 |      4 | kd876                       |     15 | 联通手机充值卡            |
+|        4 |      8 | 诺基亚n85原装充电器         |     15 | 联通手机充值卡            |
+|        3 |      8 | 诺基亚原装5800耳机          |     15 | 联通手机充值卡            |
++----------+--------+-----------------------------+--------+---------------------------+
+42 rows in set (0.00 sec)
+
+#用两表全相乘，来查询
+mysql> select goods_id,minigoods.cat_id,goods_name,category.cat_id,cat_name from minigoods,category where minigoods.cat_id=category.cat_id;
++----------+--------+-----------------------------+--------+----------+
+| goods_id | cat_id | goods_name                  | cat_id | cat_name |
++----------+--------+-----------------------------+--------+----------+
+|        1 |      4 | kd876                       |      4 | 3G手机   |
+|        4 |      8 | 诺基亚n85原装充电器         |      8 | 耳机     |
+|        3 |      8 | 诺基亚原装5800耳机          |      8 | 耳机     |
++----------+--------+-----------------------------+--------+----------+
+3 rows in set (0.00 sec)
+
+mysql> select goods_id,goods_name,goods_number,shop_price,cat_name from goods,category where goods.cat_id=category.cat_id;
++----------+----------------------------------------+--------------+------------+---------------------------+
+| goods_id | goods_name                             | goods_number | shop_price | cat_name                  |
++----------+----------------------------------------+--------------+------------+---------------------------+
+|        1 | kd876                                  |            1 |    1388.00 | 3G手机                    |
+|        4 | 诺基亚n85原装充电器                    |           17 |      58.00 | 耳机                      |
+|        3 | 诺基亚原装5800耳机                     |           24 |      68.00 | 耳机                      |
+|        5 | 索爱原装m2卡读卡器                     |            8 |      20.00 | 读卡器和内存卡            |
+|        6 | 胜创kingmax内存卡                      |           15 |      42.00 | 读卡器和内存卡            |
+|        7 | 诺基亚n85原装立体声耳机hs-82           |           20 |     100.00 | 耳机                      |
+|        8 | 飞利浦9@9v                             |            1 |     399.00 | GSM手机                   |
+|        9 | 诺基亚e66                              |            4 |    2298.00 | GSM手机                   |
+|       10 | 索爱c702c                              |            7 |    1328.00 | GSM手机                   |
+|       11 | 索爱c702c                              |            1 |    1300.00 | GSM手机                   |
+|       12 | 摩托罗拉a810                           |            8 |     983.00 | GSM手机                   |
+|       13 | 诺基亚5320 xpressmusic                 |            8 |    1311.00 | GSM手机                   |
+|       14 | 诺基亚5800xm                           |            1 |    2625.00 | 3G手机                    |
+|       15 | 摩托罗拉a810                           |            3 |     788.00 | GSM手机                   |
+|       16 | 恒基伟业g101                           |            0 |     823.33 | CDMA手机                  |
+|       17 | 夏新n7                                 |            1 |    2300.00 | GSM手机                   |
+|       18 | 夏新t5                                 |            1 |    2878.00 | 3G手机                    |
+|       19 | 三星sgh-f258                           |           12 |     858.00 | GSM手机                   |
+|       20 | 三星bc01                               |           12 |     280.00 | GSM手机                   |
+|       21 | 金立 a30                               |           40 |    2000.00 | GSM手机                   |
+|       22 | 多普达touch hd                         |            1 |    5999.00 | GSM手机                   |
+|       23 | 诺基亚n96                              |            8 |    3700.00 | 双模手机                  |
+|       24 | p806                                   |          100 |    2000.00 | GSM手机                   |
+|       25 | 小灵通/固话50元充值卡                  |            2 |      48.00 | 小灵通/固话充值卡         |
+|       26 | 小灵通/固话20元充值卡                  |            2 |      19.00 | 小灵通/固话充值卡         |
+|       27 | 联通100元充值卡                        |            2 |      95.00 | 联通手机充值卡            |
+|       28 | 联通50元充值卡                         |            0 |      45.00 | 联通手机充值卡            |
+|       29 | 移动100元充值卡                        |            0 |      90.00 | 移动手机充值卡            |
+|       30 | 移动20元充值卡                         |            9 |      18.00 | 移动手机充值卡            |
+|       31 | 摩托罗拉e8                             |            1 |    1337.00 | GSM手机                   |
+|       32 | 诺基亚n85                              |            4 |    3010.00 | GSM手机                   |
++----------+----------------------------------------+--------------+------------+---------------------------+
+31 rows in set (0.00 sec)
+
+#全相乘有可能在内存中生成一个非常大的数据
+#另外索引没利用上
+```
+#### 左连接
+左连接的语法:
+
+假设A表在左,不动,B表在A表的右边滑动.
+A表与B表通过一个关系来筛选B表的行.
+语法:
+A left join B on 条件  条件为真,则B表对应的行,取出
+
+A left join B on 条件 
+这一块,形成的也是一个结果集,可以看成一张表 设为C
+既如此,可以对C表作查询,自然where,group ,having ,order by ,limit 照常使用
+
+三四五张表左连接都可以查
+A left join B on 条件 left join C on 条件 ···
+
+问:C表的可以查询的列有哪些列?
+答: A B的列都可以查
+
+因为左连接会用到索引，全相乘会生成新表用不了索引，数据量还大，所以左连接查询效率会比全连接高出约十倍。
+```
+mysql> select goods_name,goods_id,goods.cat_id,cat_name from (goods left join category on goods.cat_id=category.cat_id) limit 6;
++----------------------------------------+----------+--------+-----------------------+
+| goods_name                             | goods_id | cat_id | cat_name              |
++----------------------------------------+----------+--------+-----------------------+
+| kd876                                  |        1 |      4 | 3G手机                |
+| 诺基亚n85原装充电器                    |        4 |      8 | 耳机                  |
+| 诺基亚原装5800耳机                     |        3 |      8 | 耳机                  |
+| 索爱原装m2卡读卡器                     |        5 |     11 | 读卡器和内存卡        |
+| 胜创kingmax内存卡                      |        6 |     11 | 读卡器和内存卡        |
+| 诺基亚n85原装立体声耳机hs-82           |        7 |      8 | 耳机                  |
++----------------------------------------+----------+--------+-----------------------+
+6 rows in set (0.00 sec)
+
+```
 5.1:取出所有商品的商品名,栏目名,价格
 select goods_name,cat_name,shop_price from 
 ecs_goods left join ecs_category
 on ecs_goods.cat_id=ecs_category.cat_id;
 
 5.2:取出第4个栏目下的商品的商品名,栏目名,价格
-select goods_name,cat_name,shop_price from 
-ecs_goods left join ecs_category
-on ecs_goods.cat_id=ecs_category.cat_id
-where ecs_goods.cat_id = 4;
-
-
-
+```
+mysql> select goods_name,goods_id,goods.cat_id,cat_name from goods left join category on goods.cat_id=category.cat_id where cat_id=4;
+ERROR 1052 (23000): Column 'cat_id' in where clause is ambiguous
+mysql> select goods_name,goods_id,goods.cat_id,cat_name from goods left join category on goods.cat_id=category.cat_id where goods.cat_id=4;
++-----------------+----------+--------+----------+
+| goods_name      | goods_id | cat_id | cat_name |
++-----------------+----------+--------+----------+
+| kd876           |        1 |      4 | 3G手机   |
+| 诺基亚5800xm    |       14 |      4 | 3G手机   |
+| 夏新t5          |       18 |      4 | 3G手机   |
++-----------------+----------+--------+----------+
+3 rows in set (0.01 sec)
+```
 5.3:取出第4个栏目下的商品的商品名,栏目名,与品牌名
+```
 select goods_name,cat_name,brand_name from 
 ecs_goods left join ecs_category
 on ecs_goods.cat_id=ecs_category.cat_id
 left join ecs_brand 
 on ecs_goods.brand_id=ecs_brand.brand_id
 where ecs_goods.cat_id = 4;
+```
+#### 左连接 右连接,内连接的区别
+举例:
+同学见面会
+男生表
+|姓名|配偶|
+|:--:|:--:|
+|屌丝|A|
+|李四|B|
+|王五|C|
+|高富帅|D|
+|郑七|E|
+
+女生表
+|姓名|配偶|
+|:--:|:--:|
+|空姐|B|
+|大S|C|
+|阿娇|D|
+|张柏芝|D|
+|林黛玉|E|
+|宝钗|F|
+
+主持人大声说:
+所有的男士,站到舞台上,带上自己的配偶,(没有的拿块牌子, 上写NULL)
+思考:张三上不上舞台呢?
+答:上,
+问:张三没有对应的行怎么办?
+答:用NULL补齐
+结果如下
+|姓名|配偶|姓名|配偶|
+|:--:|:--:|:--:|:--:|
+|屌丝|A|NULL|NULL|
+|李四|B|空姐|B|
+|王五|C|大S|C|
+|高富帅|D|阿娇|D|
+|高富帅|D|张柏芝|D|
+|郑七|E|林黛玉|E|
+
+这种情况就是  男生  left join 女生.
+```
+mysql> create table boy1 (
+    -> bname varchar(20),
+    -> other char(1)
+    -> )engine myisam charset utf8;
+Query OK, 0 rows affected (0.01 sec)
+mysql> insert into boy1 values ('屌丝','A'), ('李四','B'), ('王五','C'), ('高富帅','D'), ('郑七','E');
+Query OK, 5 rows affected (0.00 sec)
+Records: 5  Duplicates: 0  Warnings: 0
+
+mysql> create table girl1 (
+    -> gname varchar(20),
+    -> other char(1)
+    -> )engine myisam charset utf8;
+
+mysql> insert into girl1 values ('空姐','B'), ('大S','C'), ('阿娇','D'), ('张柏芝','D'), ('林黛玉','E'), ('宝钗','F');
+Query OK, 6 rows affected (0.00 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql> select boy1.*,girl1.* from boy1 left join girl1 on boy1.other=girl1.other;
++-----------+-------+-----------+-------+
+| bname     | other | gname     | other |
++-----------+-------+-----------+-------+
+| 李四      | B     | 空姐      | B     |
+| 王五      | C     | 大S       | C     |
+| 高富帅    | D     | 阿娇      | D     |
+| 高富帅    | D     | 张柏芝    | D     |
+| 郑七      | E     | 林黛玉    | E     |
+| 屌丝      | A     | NULL      | NULL  |
++-----------+-------+-----------+-------+
+6 rows in set (0.00 sec)
+```
+主持人说:所有女生请上舞台,有配偶的带着, 没有的,写个NULL补齐.
+Select 女生 left join 男生 on 条件
+
+
+左右连接是可以互换的
+A left join B, 就等价于 B right join A
+
+注意：既然左右连接可以互换，尽量用左连接，出于移植时兼容性方面的考虑．
+```
+#女生上台，带着另一半，没有的以NULL补齐
+mysql> select boy1.*,girl1.* from
+    -> girl1 left join boy1 on boy1.other=girl1.other;
++-----------+-------+-----------+-------+
+| bname     | other | gname     | other |
++-----------+-------+-----------+-------+
+| 李四      | B     | 空姐      | B     |
+| 王五      | C     | 大S       | C     |
+| 高富帅    | D     | 阿娇      | D     |
+| 高富帅    | D     | 张柏芝    | D     |
+| 郑七      | E     | 林黛玉    | E     |
+| NULL      | NULL  | 宝钗      | F     |
++-----------+-------+-----------+-------+
+6 rows in set (0.00 sec)
+#注意，a left join b,并不是说a表就一定在左边，只是说在查询数据时，以a表为准
+```
+
+
+
 
 5.4: 用友面试题
 
