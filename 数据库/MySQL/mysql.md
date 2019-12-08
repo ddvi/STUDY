@@ -9,6 +9,10 @@ MariaDB [gy1]> tee D:\1118.sql
 因此,需要声明字符集.告诉服务器,客户端用的GBK编码,防止乱码.
 set names gbk;
 
+语句打错以后应该退出本语句,再继续打新语句.也可以打\c,退出本语句.
+
+
+
 ## 数据库的连接
 mysql -u -p -h
 -u 用户名
@@ -1600,8 +1604,27 @@ mysql> select cat_id,cat_name from category where exists (select * from goods wh
 +--------+---------------------------+
 9 rows in set (0.00 sec)
 ```
-
-
+#### 习题
+子查询:
+7.1:查询出最新一行商品(以商品编号最大为最新,用子查询实现)
+```
+select goods_id,goods_name from 
+     ecs_goods where goods_id =(select max(goods_id) from ecs_goods);
+```
+7.2:查询出编号为19的商品的栏目名称(用左连接查询和子查询分别)
+7.3:用where型子查询把ecs_goods表中的每个栏目下面最新的商品取出来
+```
+select goods_id,goods_name,cat_id from ecs_goods where goods_id in (select max(goods_id) from ecs_goods group by cat_id);
+```
+7.4:用from型子查询把ecs_goods表中的每个栏目下面最新的商品取出来
+```
+select * from (select goods_id,cat_id,goods_name from ecs_goods order by goods_id desc) as t group by cat_id;
+```
+7.5 用exists型子查询,查出所有有商品的栏目
+```
+select * from category
+where exists (select * from goods where goods.cat_id=category.cat_id);
+```
 
 ###	连接查询
 #### 集合
@@ -1824,6 +1847,7 @@ on ecs_goods.brand_id=ecs_brand.brand_id
 where ecs_goods.cat_id = 4;
 ```
 #### 左连接 右连接,内连接的区别
+##### 左连接
 举例:
 同学见面会
 男生表
@@ -1894,6 +1918,7 @@ mysql> select boy1.*,girl1.* from boy1 left join girl1 on boy1.other=girl1.other
 +-----------+-------+-----------+-------+
 6 rows in set (0.00 sec)
 ```
+##### 右连接
 主持人说:所有女生请上舞台,有配偶的带着, 没有的,写个NULL补齐.
 Select 女生 left join 男生 on 条件
 
@@ -1902,6 +1927,7 @@ Select 女生 left join 男生 on 条件
 A left join B, 就等价于 B right join A
 
 注意：既然左右连接可以互换，尽量用左连接，出于移植时兼容性方面的考虑．
+##### 内连接
 ```
 #女生上台，带着另一半，没有的以NULL补齐
 mysql> select boy1.*,girl1.* from
@@ -1919,32 +1945,89 @@ mysql> select boy1.*,girl1.* from
 6 rows in set (0.00 sec)
 #注意，a left join b,并不是说a表就一定在左边，只是说在查询数据时，以a表为准
 ```
+##### 内连接的特点
+主持人说：　所有有配偶的男生／女生，走到舞台上来
+这种情况下：　屌丝和宝钗都出局
+|姓名|配偶|姓名|配偶|
+|:--:|:--:|:--:|:--:|
+|李四|B|空姐|B|
+|王五|C|大S|C|
+|高富帅|D|阿娇|D|
+|高富帅|D|张柏芝|D|
+|郑七|E|林黛玉|E|
 
+```
+mysql> select boy1.*,girl1.* from boy1 inner join girl1 on boy1.other=girl1.other;
++-----------+-------+-----------+-------+
+| bname     | other | gname     | other |
++-----------+-------+-----------+-------+
+| 李四      | B     | 空姐      | B     |
+| 王五      | C     | 大S       | C     |
+| 高富帅    | D     | 阿娇      | D     |
+| 高富帅    | D     | 张柏芝    | D     |
+| 郑七      | E     | 林黛玉    | E     |
++-----------+-------+-----------+-------+
+5 rows in set (0.00 sec)
+```
 
+如果从集合的角度
+A inner join B
+和　left join /right　join的关系
+答：　内连接是左右连接的交集
 
+问题：
+主持人说：所有男生／女生，走上舞台．
+有配偶的，带着配偶；
+没配偶的，拿牌子写ＮＵＬＬ
+即：结果是左右连接的并集
 
+这种叫做外连接，但是，在mysql中不支持外连接(sql server 中支持)
+
+两道题！
+1:预习union，合并结果集,完成外连接的效果．
+```
+mysql> select boy1.*,girl1.* from
+    -> girl1 left join boy1 on boy1.other=girl1.other
+    -> union
+    -> select boy1.*,girl1.* from
+    -> girl1 right join boy1 on boy1.other=girl1.other;
++-----------+-------+-----------+-------+
+| bname     | other | gname     | other |
++-----------+-------+-----------+-------+
+| 李四      | B     | 空姐      | B     |
+| 王五      | C     | 大S       | C     |
+| 高富帅    | D     | 阿娇      | D     |
+| 高富帅    | D     | 张柏芝    | D     |
+| 郑七      | E     | 林黛玉    | E     |
+| NULL      | NULL  | 宝钗      | F     |
+| 屌丝      | A     | NULL      | NULL  |
++-----------+-------+-----------+-------+
+7 rows in set (0.00 sec)
+```
+2:秘籍5.4用友面试题
 5.4: 用友面试题
-
 根据给出的表结构按要求写出SQL语句。
 Match 赛程表
-字段名称	字段类型	描述
-matchID	int	主键
-hostTeamID	int	主队的ID
-guestTeamID	int	客队的ID
-matchResult	varchar(20)	比赛结果，如（2:0）
-matchTime	date	比赛开始时间
+|字段名称|字段类型|描述|
+|:--:|:--:|:--:|
+|matchID|int|主键|
+|hostTeamID|int|主队的ID|
+|guestTeamID|int|客队的ID|
+|matchResult|varchar(20)|比赛结果，如（2:0）|
+|matchTime|date|比赛开始时间|
 
 
 Team 参赛队伍表
-字段名称	字段类型	描述
-teamID	int	主键
-teamName	varchar(20)	队伍名称
+|字段名称|字段类型|描述|
+|:--:|:--:|:--:|
+|teamID|int|主键|
+|teamName|varchar(20)|队伍名称|
 
 
 Match的hostTeamID与guestTeamID都与Team中的teamID关联
 查出 2006-6-1 到2006-7-1之间举行的所有比赛，并且用以下形式列出：
 拜仁  2：0 不来梅 2006-6-21
-
+```
 mysql> select * from m;
 +-----+------+------+------+------------+
 | mid | hid  | gid  | mres | matime     |
@@ -1966,25 +2049,53 @@ mysql> select * from t;
 +------+----------+
 3 rows in set (0.00 sec)
 
-mysql> select hid,t1.tname as hname ,mres,gid,t2.tname as gname,matime
-    -> from 
-    -> m left join t as t1
-    -> on m.hid = t1.tid
-    -> left join t as t2
-    -> on m.gid = t2.tid;
-+------+----------+------+------+----------+------------+
-| hid  | hname    | mres | gid  | gname    | matime     |
-+------+----------+------+------+----------+------------+
-|    1 | 国安     | 2:0  |    2 | 申花     | 2006-05-21 |
-|    2 | 申花     | 1:2  |    3 | 公益联队 | 2006-06-21 |
-|    3 | 公益联队 | 2:5  |    1 | 国安     | 2006-06-25 |
-|    2 | 申花     | 3:2  |    1 | 国安     | 2006-07-21 |
-+------+----------+------+------+----------+------------+
+mysql> select mid,hid,t1.tname,mres,gid,t2.tname,matime from
+    -> m left join t as t1 on m.hid=t1.tid
+    -> left join t as t2 on m.gid=t2.tid;
++------+------+--------------+------+------+--------------+------------+
+| mid  | hid  | tname        | mres | gid  | tname        | matime     |
++------+------+--------------+------+------+--------------+------------+
+|    4 |    2 | 申花         | 3:2  |    1 | 国安         | 2006-07-21 |
+|    3 |    3 | 布尔联队     | 2:5  |    1 | 国安         | 2006-06-25 |
+|    1 |    1 | 国安         | 2:0  |    2 | 申花         | 2006-05-21 |
+|    2 |    2 | 申花         | 1:2  |    3 | 布尔联队     | 2006-06-21 |
++------+------+--------------+------+------+--------------+------------+
 4 rows in set (0.00 sec)
 
-6	union查询
-6.1:把ecs_comment,ecs_feedback两个表中的数据,各取出4列,并把结果集union成一个结果集.
+mysql> select mid,hid,t1.tname,mres,gid,t2.tname,matime from     -> m left join t as t1 on m.hid=t1.tid
+    -> left join t as t2 on m.gid=t2.tid
+    -> where matime between '2006-06-01' and '2006-07-01';
++------+------+--------------+------+------+--------------+------------+
+| mid  | hid  | tname        | mres | gid  | tname        | matime     |
++------+------+--------------+------+------+--------------+------------+
+|    3 |    3 | 布尔联队     | 2:5  |    1 | 国安         | 2006-06-25 |
+|    2 |    2 | 申花         | 1:2  |    3 | 布尔联队     | 2006-06-21 |
++------+------+--------------+------+------+--------------+------------+
+2 rows in set (0.01 sec)
 
+```
+#### union查询
+Union:合并2条或多条语句的结果
+##### 语法:
+```
+Sql1 union sql2
+```
+
+##### 示例
+6.1:取出小于30大于4000的商品，不用or
+```
+mysql> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where shop_price<30
+    -> union    -> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where shop_price>4000;                                     +----------+--------------------------------+--------+--------------+------------+
+| goods_id | goods_name                     | cat_id | goods_number | shop_price |
++----------+--------------------------------+--------+--------------+------------+
+|        5 | 索爱原装m2卡读卡器             |     11 |            8 |      20.00 |
+|       26 | 小灵通/固话20元充值卡          |     13 |            2 |      19.00 |
+|       30 | 移动20元充值卡                 |     14 |            9 |      18.00 |
+|       22 | 多普达touch hd                 |      3 |            1 |    5999.00 |
++----------+--------------------------------+--------+--------------+------------+
+4 rows in set (0.00 sec)
+
+```
 6.2:3期学员碰到的一道面试题
 A表:
 +------+------+
@@ -2017,7 +2128,7 @@ B表:
 | d    |       30 |
 | e    |       99 |
 +------+----------+
-
+```
 create table a (
 id char(1),
 num int
@@ -2064,21 +2175,361 @@ mysql> select id,sum(num) from (select * from ta union all select * from tb) as 
 +------+----------+
 5 rows in set (0.00 sec)
 
+#用左连接去做
+mysql> select a.*,b.* from 
+    -> a left join b on a.id=b.id;
++------+------+------+------+
+| id   | num  | id   | num  |
++------+------+------+------+
+| b    |   10 | b    |    5 |
+| c    |   15 | c    |   15 |
+| d    |   10 | d    |   20 |
+| a    |    5 | NULL | NULL |
++------+------+------+------+
+4 rows in set (0.00 sec)
+#再把上面的结果看成一张临时表，再次from子查询
+#ifnull函数 
+#没有e
+#左连接 union 右连接 在子查询
 
-7: 子查询:
-7.1:查询出最新一行商品(以商品编号最大为最新,用子查询实现)
-select goods_id,goods_name from 
-     ecs_goods where goods_id =(select max(goods_id) from ecs_goods);
+#使用ifnull函数单独计算字段为null的行
+mysql> select ifnull(id,bid) as id,ifnull(num,bnum) as num from
+(select * from 
+(select a.*,b.id as bid,b.num as bnum from 
+a left join b on a.id=b.id 
+union
+select a.*,b.id as bid,b.num as bnum from
+a right join b on a.id=b.id) as tmp 
+where bid is null or id is null) as tmp1;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| e    |   99 |
++------+------+
+2 rows in set (0.00 sec)
+
+#正常计算没有字段为null的行
+mysql> select id,num+bnum as num from (select a.*,b.id as bid,b.num as bnum from  a inner join b on a.id=b.id) as tmp3;
++------+------+
+| id   | num  |
++------+------+
+| b    |   15 |
+| c    |   30 |
+| d    |   30 |
++------+------+
+3 rows in set (0.00 sec)
+
+#组合计算union并用order by排序
+mysql> select id,num+bnum as num from (select a.*,b.id as bid,b.num as bnum from  a inner join b on a.id=b.id) as tmp3 
+union
+select ifnull(id,bid) as id,ifnull(num,bnum) as num from (select * from  (select a.*,b.id as bid,b.num as bnum from  a left join b on a.id=b.id  union select a.*,b.id as bid,b.num as bnum from a right join b on a.id=b.id) as tmp  where bid is null or id is null) as tmp1 order by id;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| b    |   15 |
+| c    |   30 |
+| d    |   30 |
+| e    |   99 |
++------+------+
+5 rows in set (0.00 sec)
+```
+##### FAQ
+能否从2张表查询再union呢?
+答:可以,union 合并的是"结果集",不区分在自于哪一张表.
+
+问:取自于2张表,通过"别名"让2个结果集的列一致.
+那么,如果取出的结果集,列名字不一样,还能否union.
+答:可以,如下图,而且取出的最终列名,以第1条sql为准 
+![](http://ww1.sinaimg.cn/large/005Lei8Jly1g9oivn2wy2j30h9054746.jpg)
+
+问:union满足什么条件就可以用了?
+答:只要结果集中的列数一致就可以.
+
+问:列的类型不一样,也行吗?
+答:见上题 .  可行的，不过没有意义
+
+问: union后结果集,可否再排序呢?
+答:可以的.
+Sql1 union sql2 order by 字段
+注意: order by 是针对合并后的结果集排的序.
+
+```
+mysql> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where shop_price<30
+    -> union
+    -> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where shop_price>4000
+    -> order by shop_price desc;
++----------+--------------------------------+--------+--------------+------------+
+| goods_id | goods_name                     | cat_id | goods_number | shop_price |
++----------+--------------------------------+--------+--------------+------------+
+|       22 | 多普达touch hd                 |      3 |            1 |    5999.00 |
+|        5 | 索爱原装m2卡读卡器             |     11 |            8 |      20.00 |
+|       26 | 小灵通/固话20元充值卡          |     13 |            2 |      19.00 |
+|       30 | 移动20元充值卡                 |     14 |            9 |      18.00 |
++----------+--------------------------------+--------+--------------+------------+
+4 rows in set (0.00 sec)
+
+#用union取出第4个栏目和第五个栏目的商品，并按照价格排序。
+mysql> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=4    -> union 
+    -> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=5
+    -> order by shop_price;
++----------+-----------------+--------+--------------+------------+
+| goods_id | goods_name      | cat_id | goods_number | shop_price |
++----------+-----------------+--------+--------------+------------+
+|        1 | kd876           |      4 |            1 |    1388.00 |
+|       14 | 诺基亚5800xm    |      4 |            1 |    2625.00 |
+|       18 | 夏新t5          |      4 |            1 |    2878.00 |
+|       23 | 诺基亚n96       |      5 |            8 |    3700.00 |
++----------+-----------------+--------+--------------+------------+
+4 rows in set (0.00 sec)
+```
+问: 使用order by 的注意事项
+如下,内层语句的desc怎么没发挥作用呢?
+![](http://ww1.sinaimg.cn/large/005Lei8Jly1g9p4vbel2nj30i006w0so.jpg)
+
+思考如下语句:
+```
+(SELECT goods_id,cat_id,goods_name,shop_price FROM goods WHERE cat_id = 4 ORDER BY shop_price DESC)
+UNION
+(SELECT goods_id,cat_id,goods_name,shop_price FROM goods WHERE cat_id = 5 ORDER BY shop_price DESC)
+order by shop_price asc;
+```
+
+外层语句还要对最终结果,再次排序.
+因此,内层的语句的排序,就没有意义.
+
+因此:内层的order by 语句单独使用,不会影响结果集,仅排序,
+在执行期间,就被Mysql的代码分析器给优化掉了.
+内层的order by 必须能够影响结果集时,才有意义.
+比如 配合limit 使用. 如下例.
+
+思考下个问题:
+查出: 第3个栏目下,价格前3高的商品,和第4个栏目下,价格前2高的商品.
+用union来完成
+```
+mysql> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=3 order by shop_price asc limit 0,3
+    -> union
+    -> select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=4 order by shop_price asc limit 0,2;
+ERROR 1221 (HY000): Incorrect usage of UNION and ORDER BY
+
+#不加括号，后面的order by会认为是对整体排序
+
+mysql> (select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=3 order by shop_price asc limit 0,3)    -> union    -> (select goods_id,goods_name,cat_id,goods_number,shop_price from goods where cat_id=4 order by shop_price asc limit 0,2);
++----------+------------------+--------+--------------+------------+
+| goods_id | goods_name       | cat_id | goods_number | shop_price |
++----------+------------------+--------+--------------+------------+
+|       20 | 三星bc01         |      3 |           12 |     280.00 |
+|        8 | 飞利浦9@9v       |      3 |            1 |     399.00 |
+|       15 | 摩托罗拉a810     |      3 |            3 |     788.00 |
+|        1 | kd876            |      4 |            1 |    1388.00 |
+|       14 | 诺基亚5800xm     |      4 |            1 |    2625.00 |
++----------+------------------+--------+--------------+------------+
+5 rows in set (0.00 sec)
+```
+
+这一次:内层的order by 发挥了作用,因为有limit ,order 会实际影响结果集,有意义.
+
+如果Union后的结果有重复(即某2行,或N行,所有的列,值都一样),怎么办?
+答:这种情况是比较常见的,默认会去重.
+
+问:如果不想去重怎么办?
+答: union all
+ mysql> select * from  a;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| b    |   10 |
+| c    |   15 |
+| d    |   10 |
++------+------+
+4 rows in set (0.00 sec)
+
+mysql> select * from  c;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| b    |   10 |
+| c    |   15 |
+| d    |   15 |
++------+------+
+4 rows in set (0.00 sec)
+
+mysql> select * from  a 
+    -> union
+    -> select * from  c;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| b    |   10 |
+| c    |   15 |
+| d    |   10 |
+| d    |   15 |
++------+------+
+5 rows in set (0.00 sec)
+
+mysql> select * from  a
+    -> union all
+    -> select * from  c;
++------+------+
+| id   | num  |
++------+------+
+| a    |    5 |
+| b    |   10 |
+| c    |   15 |
+| d    |   10 |
+| a    |    5 |
+| b    |   10 |
+| c    |   15 |
+| d    |   15 |
++------+------+
+8 rows in set (0.00 sec)
+```
+
+```
+## 函数
+### 控制流函数
+#### CASE
+```
+CASE value WHEN [compare_value] THEN result [WHEN [compare_value] THEN result ...] [ELSE result] END
+
+CASE WHEN [condition] THEN result [WHEN [condition] THEN result ...] [ELSE result] END
+
+mysql> SELECT CASE 1 WHEN 1 THEN "one"
+           WHEN 2 THEN "two" ELSE "more" END;
+       -> "one"
+mysql> SELECT CASE WHEN 1>0 THEN "true" ELSE "false" END;
+       -> "true"
+mysql> SELECT CASE BINARY "B" WHEN "a" THEN 1 WHEN "b" THEN 2 END;
+       -> NULL
+
+```
+格式：
+case 值
+when 某种可能
+then 返回值
+
+when 另一种可能值
+then 返回值
+
+else 默认值
+
+end
+```
+mysql> create table test15 (
+    -> sname varchar(5),
+    -> gender tinyint
+    -> )engine myisam charset utf8;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into test15
+    -> values
+    -> ('张三',1),
+    -> ('韩梅梅',0),
+    -> ('李宇春',2);
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+#现在性别数字表示，能否显示出男女春这三个中文给客户看
+#即要做判断 1=》男 0=》女 2=》春
+#能否针对gender变量做分支控制
+
+mysql> select sname,
+    -> case gender
+    -> when 1
+    -> then '男'
+    -> when 0 
+    -> then '女'
+    -> else '春'
+    -> end as xingbie
+    -> from test15;
++-----------+---------+
+| sname     | xingbie |
++-----------+---------+
+| 张三      | 男      |
+| 韩梅梅    | 女      |
+| 李宇春    | 春      |
++-----------+---------+
+3 rows in set (0.00 sec)
+```
+
+#### IF
+IF(expr1,expr2,expr3)
+如果expr1为真，那么将返回expr2的值，否则返回expr3的值
+mysql> SELECT IF(1>2,2,3);
+        -> 3
+mysql> SELECT IF(1<2,'yes','no');
+        -> 'yes'
+mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
+        -> 'no'
+如果expr2和expr3明确的指为null，那么将返回非NULL的类型..
+
+```
+#判断性别，让女士优先
+mysql> select sname,
+    -> if(gender=0,'优先','等待') as vip
+    -> from test15;
++-----------+--------+
+| sname     | vip    |
++-----------+--------+
+| 张三      | 等待   |
+| 韩梅梅    | 优先   |
+| 李宇春    | 等待   |
++-----------+--------+
+3 rows in set (0.00 sec)
+```
+#### IFNULL
+ IFNULL(expr1,expr2)
+如果 expr1 为非 NULL 的，IFNULL() 返回 expr1，否则返回 expr2。IFNULL() 返回一个数字或字符串值
+```
+mysql> SELECT IFNULL(1,0);
+        -> 1
+mysql> SELECT IFNULL(NULL,10);
+        -> 10
+```
+#### NULLIF
+NULLIF(expr1,expr2)
+
+如果 expr1 = expr2 为真，返回 NULL，否则返回 expr1。 它等同于 CASE WHEN x = y THEN NULL ELSE x END：
+```
+mysql> SELECT NULLIF(1,1);
+        -> NULL
+mysql> SELECT NULLIF(1,2);
+        -> 1
+```
+### 使用注意事项
+如果mysql函数和PHP函数都实现某个功能,优先用哪一个?
+
+1:mysql的函数肯定是要影响查询速度.
+应该在建表时,通过合理的表结构减少函数的使用.
+比如 email ,按@ 前后拆分.
 
 
-7.2:查询出编号为19的商品的栏目名称(用左连接查询和子查询分别)
-7.3:用where型子查询把ecs_goods表中的每个栏目下面最新的商品取出来
-select goods_id,goods_name,cat_id from ecs_goods where goods_id in (select max(goods_id) from ecs_goods group by cat_id);
-7.4:用from型子查询把ecs_goods表中的每个栏目下面最新的商品取出来
-select * from (select goods_id,cat_id,goods_name from ecs_goods order by goods_id desc) as t group by cat_id;
-7.5 用exists型子查询,查出所有有商品的栏目
-select * from category
-where exists (select * from goods where goods.cat_id=category.cat_id);
+2:如果确实要用函数,
+比如 时间的格式化
+在mysql里用date_format,在php里用date可以实现
+优先放在业务逻辑层,即php层处理.
+
+
+3:在查询时使用了函数,最大的一个坏处,
+以 date_format(A)为例
+则A列的索引将无法使用.
+
+如果你针对某列作操作,而此次查询,又使用的此列的索引.
+此时,速度将显著变慢.
+
+
+例: 
+sname, email 两列
+email加了索引
+
+Select name,email from table where right(email,6)='qq.com';
+将会导致此次查询中, email的索引并不会产生效果.
+
+
 
 
 创建触发器:
