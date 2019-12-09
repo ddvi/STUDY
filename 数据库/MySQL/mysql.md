@@ -1,6 +1,80 @@
-[toc]
-passwd
-Lzx19940606-
+<!-- TOC -->
+
+- [MySQL](#mysql)
+    - [数据库的连接](#数据库的连接)
+    - [库级知识](#库级知识)
+    - [表级操作](#表级操作)
+        - [常规命令](#常规命令)
+        - [修改表](#修改表)
+            - [修改表之增加列:](#修改表之增加列)
+            - [修改表之修改列](#修改表之修改列)
+            - [修改表之减少列:](#修改表之减少列)
+            - [修改表之增加主键](#修改表之增加主键)
+            - [修改表之删除主键](#修改表之删除主键)
+            - [修改表之增加索引](#修改表之增加索引)
+            - [修改表之删除索引](#修改表之删除索引)
+            - [清空表的数据](#清空表的数据)
+            - [删除表](#删除表)
+    - [列类型讲解](#列类型讲解)
+        - [列类型](#列类型)
+            - [整型](#整型)
+            - [数值型](#数值型)
+            - [字符型](#字符型)
+                - [char varchar](#char-varchar)
+                - [Text](#text)
+                - [Blob](#blob)
+            - [日期时间类型](#日期时间类型)
+    - [增删改查基本操作](#增删改查基本操作)
+        - [插入数据](#插入数据)
+        - [修改数据](#修改数据)
+        - [删除数据](#删除数据)
+        - [查询数据](#查询数据)
+            - [select查询](#select查询)
+    - [查询知识](#查询知识)
+        - [基础查询 where的练习:](#基础查询-where的练习)
+        - [sql查询模型理解](#sql查询模型理解)
+        - [分组查询group:](#分组查询group)
+        - [havings筛选](#havings筛选)
+            - [查询过程](#查询过程)
+        - [having与group综合运用查询:](#having与group综合运用查询)
+        - [order by 与 limit查询](#order-by-与-limit查询)
+            - [Order by](#order-by)
+            - [Limit](#limit)
+        - [子查询](#子查询)
+            - [Where型子查询](#where型子查询)
+            - [From 型子查询](#from-型子查询)
+            - [Exists子查询](#exists子查询)
+            - [习题](#习题)
+        - [连接查询](#连接查询)
+            - [集合](#集合)
+            - [左连接](#左连接)
+            - [左连接 右连接,内连接的区别](#左连接-右连接内连接的区别)
+                - [左连接](#左连接-1)
+                - [右连接](#右连接)
+                - [内连接](#内连接)
+                - [内连接的特点](#内连接的特点)
+            - [union查询](#union查询)
+                - [语法:](#语法)
+                - [示例](#示例)
+                - [FAQ](#faq)
+    - [函数](#函数)
+        - [控制流函数](#控制流函数)
+            - [CASE](#case)
+            - [IF](#if)
+            - [IFNULL](#ifnull)
+            - [NULLIF](#nullif)
+        - [使用注意事项](#使用注意事项)
+    - [视图 view](#视图-view)
+        - [视图的定义:](#视图的定义)
+        - [视图的语法](#视图的语法)
+            - [视图的创建语法:](#视图的创建语法)
+            - [视图的删除语法:](#视图的删除语法)
+            - [为什么要视图](#为什么要视图)
+            - [视图的修改](#视图的修改)
+            - [视图的特性](#视图的特性)
+            - [视图的algorithm](#视图的algorithm)
+
+<!-- /TOC -->
 # MySQL
 MariaDB [gy1]> tee D:\1118.sql
 这句话是把我敲的sql及结果都输出到一个sql文件里，便于复习
@@ -11,7 +85,11 @@ set names gbk;
 
 语句打错以后应该退出本语句,再继续打新语句.也可以打\c,退出本语句.
 
-
+数据库data目录下如下三种文件，后辍名分别为-frm，myi，myd，请问分别代表什么文件，各有什么作用？
+如果一个表同时有3个你上面说的文件，则存储引擎是myisam，其中可以简单理解成这样：
+（1）*.frm--表定义，是描述表结构的文件。
+（2）*.MYD--"D"数据信息文件，是表的数据文件。
+（3）*.MYI--"I"索引信息文件，是表数据文件中任何索引的数据树。
 
 ## 数据库的连接
 mysql -u -p -h
@@ -2528,6 +2606,428 @@ email加了索引
 
 Select name,email from table where right(email,6)='qq.com';
 将会导致此次查询中, email的索引并不会产生效果.
+
+
+
+
+## 视图 view
+```
+#查询每个栏目下商品的平均价格，并取平均价格前三低的栏目
+mysql> select cat_id,avg(shop_price) as pj
+    -> from goods
+    -> group by cat_id
+    -> order by pj asc
+    -> limit 3;
++--------+-----------+
+| cat_id | pj        |
++--------+-----------+
+|     11 | 31.000000 |
+|     13 | 33.500000 |
+|     14 | 54.000000 |
++--------+-----------+
+3 rows in set (0.00 sec)
+
+#取平均价格第三名到第五名的栏目
+#group by cat_id,查询出每个栏目下的平均价，设为结果集A
+#无论想查前三高还是前三低，都要用到结果集A
+#结果集A频繁用到，因此，可以把结果保存一张表，下次来查这张表
+#但是如果goods表又添加了商品，A结果集就与你保存的临时表不一样了
+#这是，可以用视图来解决
+```
+
+在查询中,我们经常把查询结果 当成临时表来看.
+View是什么? View可以看一张虚拟表. 是表通过某种运算得到的一个投影.
+
+既然视图只是表的某种查询的投影,所以主要步骤在于查询表上.
+查询的结果命名为视图就可以了.
+
+
+### 视图的定义:
+视图是由查询结果形成的一张虚拟表.
+
+### 视图的语法
+#### 视图的创建语法:
+```
+Create view 视图名 as  select 语句;
+```
+#### 视图的删除语法:
+```
+Drop view 视图名
+```
+#### 为什么要视图
+答:1:可以简化查询
+比如，复杂的统计时，先用视图生成一个中间结果，在查询视图
+
+```
+mysql> create view stats 
+    -> as
+    -> select cat_id,avg(shop_price) as pj
+    -> from goods
+    -> group by cat_id;
+Query OK, 0 rows affected (0.03 sec)
+mysql> select * from stats;
++--------+-------------+
+| cat_id | pj          |
++--------+-------------+
+|      2 |  823.330000 |
+|      3 | 1746.066667 |
+|      4 | 2297.000000 |
+|      5 | 3700.000000 |
+|      8 |   75.333333 |
+|     11 |   31.000000 |
+|     13 |   33.500000 |
+|     14 |   54.000000 |
+|     15 |   70.000000 |
++--------+-------------+
+9 rows in set (0.00 sec)
+#查询栏目平均价前三高
+mysql> select * from stats order by pj limit 3;
++--------+-----------+
+| cat_id | pj        |
++--------+-----------+
+|     11 | 31.000000 |
+|     13 | 33.500000 |
+|     14 | 54.000000 |
++--------+-----------+
+3 rows in set (0.01 sec)
+视图一旦创建完毕，就可以像表一样查询
+```
+
+2: 可以实现更精细的权限控制
+把表的权限封闭,但是开放相应的视图权限,视图里只开放部分数据
+比如某张表，以用户表为例
+现在呢，2个网站搞合作，可以查询对方网站的用户
+需要向对方开放用户表的权限
+但是呢，又不想开放用户表中的密码字段
+create view vuser
+as
+select user_id,username,email from user;
+开放这个视图的权限给对方
+
+3: 大数据分表时可以用到
+比如,表的行数超过200万行时,就会变慢,
+可以把一张的表的数据拆成4张表来存放. 
+News表
+Newsid, 1,2,3,4
+News1,news2,news3,news4表
+
+把一张表的数据分散到4张表里,分散的方法很多,
+最常用可以用id取模来计算. 
+Id%4+1 = [1,2,3,4]
+
+比如 $_GET['id'] = 17,
+17%4 + 1 = 2,  $tableName = 'news'.'2'
+
+Select * from news2 where id = 17;
+
+查询时可能不知道查询哪张表，可以用视图, 把4张表形成一张视图
+Create view news as  select from n1 union select from n2 union.........
+
+#### 视图的修改
+Alter view 视图名 as select xxxxxx
+```
+mysql> ALTER VIEW view_students_info
+    -> AS SELECT id,name,age
+    -> FROM tb_students_info;
+Query OK, 0 rows affected (0.07 sec)
+mysql> DESC view_students_info;
++-------+-------------+------+-----+---------+-------+
+| Field | Type        | Null | Key | Default | Extra |
++-------+-------------+------+-----+---------+-------+
+| id    | int(11)     | NO   |     | 0       |       |
+| name  | varchar(45) | YES  |     | NULL    |       |
+| age   | int(11)     | YES  |     | NULL    |       |
++-------+-------------+------+-----+---------+-------+
+3 rows in set (0.03 sec)
+```
+#### 视图的特性
+视图是表的一个影子.
+表与视图,数据变化时的相互影响问题.
+
+表的数据变化，要影响到视图的变化
+```
+mysql> select goods_id,cat_id,shop_price from goods where cat_id=15;
++----------+--------+------------+
+| goods_id | cat_id | shop_price |
++----------+--------+------------+
+|       27 |     15 |      95.00 |
+|       28 |     15 |      45.00 |
++----------+--------+------------+
+2 rows in set (0.00 sec)
+
+mysql> update goods set shop_price=65 where goods_id=28;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select goods_id,cat_id,shop_price from goods where cat_id=15;
++----------+--------+------------+
+| goods_id | cat_id | shop_price |
++----------+--------+------------+
+|       27 |     15 |      95.00 |
+|       28 |     15 |      65.00 |
++----------+--------+------------+
+2 rows in set (0.00 sec)
+
+mysql> select * from stats;
++--------+-------------+
+| cat_id | pj          |
++--------+-------------+
+|      2 |  823.330000 |
+|      3 | 1746.066667 |
+|      4 | 2297.000000 |
+|      5 | 3700.000000 |
+|      8 |   75.333333 |
+|     11 |   31.000000 |
+|     13 |   33.500000 |
+|     14 |   54.000000 |
+|     15 |   80.000000 |
++--------+-------------+
+9 rows in set (0.00 sec)
+```
+视图与表的关系
+视图是表的查询结果,自然表的数据改变了,影响视图的结果.
+
+视图改变了呢?
+0: 视图增删改也会影响表
+1: 但是,视图并是总是能增删改的.
+
+视图某种情况下,是可以修改的.
+要求: 视图的数据和表的数据 11对应. 就像函数的映射.
+表-->推出视图对应的数据
+视图-->推出表对应的数据
+对于视图insert还应注意,
+视图必须包含表中没有默认值的列. 
+![](http://ww1.sinaimg.cn/large/005Lei8Jly1g9qasdwisyj30fa0awdfs.jpg)
+以这个例子而言,平均价来自于多行的的shop_price的计算结果.
+如果pj列的值的变子,映射过去,到底修改哪几行shop_price?
+ 
+```
+mysql> update stats set pj=90 where cat_id=15;
+ERROR 1288 (HY000): The target table stats of the UPDATE is not updatable
+```
+```
+mysql> create view gui
+    -> as
+    -> select goods_id,goods_name,shop_price
+    -> from goods order by shop_price desc limit 5;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from gui;
++----------+-------------------+------------+
+| goods_id | goods_name        | shop_price |
++----------+-------------------+------------+
+|       22 | 多普达touch hd    |    5999.00 |
+|       23 | 诺基亚n96         |    3700.00 |
+|       32 | 诺基亚n85         |    3010.00 |
+|       18 | 夏新t5            |    2878.00 |
+|       14 | 诺基亚5800xm      |    2625.00 |
++----------+-------------------+------------+
+5 rows in set (0.00 sec)
+
+mysql> update gui set goods_name='多达谱Touch HD' where goods_id=22;
+ERROR 1288 (HY000): The target table gui of the UPDATE is not updatable
+mysql> delete from gui where goods_id=14;
+ERROR 1288 (HY000): The target table gui of the DELETE is not updatable
+mysql> insert into gui
+    -> values
+    -> (33,'精品手机',234.56);
+ERROR 1471 (HY000): The target table gui of the INSERT is not insertable-into
+#当前增删改均不可以
+#原因是因为
+order by limit得到的结果，与表不是一一对应的
+比如
+price
+100
+100
+100
+100
+100
+视图：
+order by price desc limit3
+上面这5行，选的哪3行？
+
+一一对应是指：根据select关系，从表中取出的行只能计算出视图中确定的一行，反之，视图中任意抽一行，能够反推出表中的确定的一行
+
+#视图到底能否增删改
+mysql> create view goods4
+    -> as
+    -> select * from goods where cat_id=4;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> select * from goods4;
++----------+-----------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+| goods_id | goods_name      | cat_id | brand_id | goods_sn  | goods_number | shop_price | market_price | click_count |
++----------+-----------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+|        1 | kd876           |      4 |        8 | ecs000000 |            1 |    1388.00 |      1665.60 |           9 |
+|       14 | 诺基亚5800xm    |      4 |        1 | ecs000014 |            1 |    2625.00 |      3150.00 |           6 |
+|       18 | 夏新t5          |      4 |        5 | ecs000018 |            1 |    2878.00 |      3453.60 |           0 |
++----------+-----------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+3 rows in set (0.00 sec)
+
+mysql> delete from goods where goods_id=1;
+Query OK, 1 row affected (0.00 sec)
+mysql> select goods_id,goods_name,shop_price from goods4;
++----------+-----------------+------------+
+| goods_id | goods_name      | shop_price |
++----------+-----------------+------------+
+|       14 | 诺基亚5800xm    |    2625.00 |
+|       18 | 夏新t5          |    2878.00 |
++----------+-----------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> select goods_id,goods_name,shop_price from goods;
++----------+----------------------------------------+------------+
+| goods_id | goods_name                             | shop_price |
++----------+----------------------------------------+------------+
+|        4 | 诺基亚n85原装充电器                    |      58.00 |
+|        3 | 诺基亚原装5800耳机                     |      68.00 |
+|        5 | 索爱原装m2卡读卡器                     |      20.00 |
+|        6 | 胜创kingmax内存卡                      |      42.00 |
+|        7 | 诺基亚n85原装立体声耳机hs-82           |     100.00 |
+|        8 | 飞利浦9@9v                             |     399.00 |
+|        9 | 诺基亚e66                              |    2298.00 |
+|       10 | 索爱c702c                              |    1328.00 |
+|       11 | 索爱c702c                              |    1300.00 |
+|       12 | 摩托罗拉a810                           |     983.00 |
+|       13 | 诺基亚5320 xpressmusic                 |    1311.00 |
+|       14 | 诺基亚5800xm                           |    2625.00 |
+|       15 | 摩托罗拉a810                           |     788.00 |
+|       16 | 恒基伟业g101                           |     823.33 |
+|       17 | 夏新n7                                 |    2300.00 |
+|       18 | 夏新t5                                 |    2878.00 |
+|       19 | 三星sgh-f258                           |     858.00 |
+|       20 | 三星bc01                               |     280.00 |
+|       21 | 金立 a30                               |    2000.00 |
+|       22 | 多普达touch hd                         |    5999.00 |
+|       23 | 诺基亚n96                              |    3700.00 |
+|       24 | p806                                   |    2000.00 |
+|       25 | 小灵通/固话50元充值卡                  |      48.00 |
+|       26 | 小灵通/固话20元充值卡                  |      19.00 |
+|       27 | 联通100元充值卡                        |      95.00 |
+|       28 | 联通50元充值卡                         |      65.00 |
+|       29 | 移动100元充值卡                        |      90.00 |
+|       30 | 移动20元充值卡                         |      18.00 |
+|       31 | 摩托罗拉e8                             |    1337.00 |
+|       32 | 诺基亚n85                              |    3010.00 |
++----------+----------------------------------------+------------+
+30 rows in set (0.00 sec)
+```
+
+#### 视图的algorithm
+```
+mysql> create view v1
+    -> as 
+    -> select * from goods where shop_price>300;
+Query OK, 0 rows affected (0.02 sec)
+
+#下次我让你查询价格>300且小于500的商品
+你将如何做
+有视图
+mysql> select * from v1 where shop_price<500;
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+| goods_id | goods_name    | cat_id | brand_id | goods_sn  | goods_number | shop_price | market_price | click_count |
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+|        8 | 飞利浦9@9v    |      3 |        4 | ecs000008 |            1 |     399.00 |       478.79 |          10 |
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+1 row in set (0.00 sec)
+查表：
+mysql> select * from goods where shop_price > 300 and shop_price < 500;
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+| goods_id | goods_name    | cat_id | brand_id | goods_sn  | goods_number | shop_price | market_price | click_count |
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+|        8 | 飞利浦9@9v    |      3 |        4 | ecs000008 |            1 |     399.00 |       478.79 |          10 |
++----------+---------------+--------+----------+-----------+--------------+------------+--------------+-------------+
+1 row in set (0.00 sec)
+
+我们说，视图可以看成临时表。
+如果看成临时表的话。
+tmp = select * from goods where shop_price > 300;
+select * from tmp where shop_price < 500;
+
+#思考，如果没有这张临时表，查看这个视图，还有没有可能完成
+答：可以的  查原表
+把 建视图时的条件 和 查视图时的条件叠加 直接去查表
+select * from goods where shop_price > 300 and shop_price < 500;
+
+#对于一些简单视图，他在发挥作用过程中，并没有建立临时表，而只是把条件存起来，下次查询把条件一合并，直接去查表
+
+#思考：相对于建临时表，哪个快
+建表：查询=》形成临时表=》查询临时表
+叠加：合并条件=》查询表
+
+到底要不要建临时比表，还是合并语句
+algorithm=
+merge 合并查询语句
+temptable 临时表
+undefined 未定义，由系统判断
+
+
+#总的条件就是<500 >300
+#这个简单的查询还建临时表的话，开销有点大
+#这是我们可以指定algorihm选项为merge
+mysql> create algorithm=merge view v2
+    -> as
+    -> select * from goods where shop_price>300;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> select goods_id,goods_name,shop_price from v2 where shop_price < 500;
++----------+---------------+------------+
+| goods_id | goods_name    | shop_price |
++----------+---------------+------------+
+|        8 | 飞利浦9@9v    |     399.00 |
++----------+---------------+------------+
+1 row in set (0.00 sec)
+
+#虽然从结果上看不出区别，但是v2这个视图并没有建立临时表
+#有的时候，必须建立临时表
+create view v3
+as
+select * from goods order by cat_id asc,shop_price desc;
+#下次再让你查，每个栏目最新的商品
+select * from v3 group by cat_id;
+
+思考：如何合并这两个语句？
+select * from goods order by cat_id asc,shop_price desc group by cat_id;
+由上述可知语句不能合并，只能拿先建立临时表
+
+create algorithm=temptable view v3
+as
+select * from goods order by cat_id asc,shop_price desc;
+
+#这张表,明确制定了生成临时表
+#如果拿不准用什么，algorithm=undefined，让系统为我们做决定
+```
+
+Algorithm = merge/ temptable/ undefined
+Merge: 当引用视图时,引用视图的语句与定义视图的语句合并.
+Temptable:当引用视图时,根据视图的创建语句建立一个临时表
+Undefined:未定义,自动,让系统帮你选.
+
+Merge,意味着视图只是一个规则,语句规则, 当查询视图时,
+把查询视图的语句(比如where那些)与创建时的语句where子句等合并,分析.
+形成一条select 语句.
+例: 创建视图的语句:
+mysql> create view g2 as select goods_id,cat_id,goods_name,shop_price from goods where shop_price>2000
+查询视图的语句:
+select * from g2  where shop_price < 3000;
+
+最终执行的语句:
+select goods_id,cat_id,goods_name,shop_price from goods where shop_price > 2000 and shop_price < 3000
+
+而temptable是根据创建语句瞬间创建一张临时表,
+然后查询视图的语句从该临时表查数据.
+create algorethm=temptable view g2 as select goods_id,cat_id,goods_name,shop_price from goods where shop_price > 2000
+查询视图的语句:
+ select * from g2  where shop_price < 3000;
+
+最终执行的2句话: 取数据并放在临时表,然后去查临时表.
+Select  goods_id,cat_id,goods_name,shop_price from goods where shop_price > 2000;
+========> temptable
+
+再次查临时表
+Select * from temptable where shop_price< 3000
+
+
 
 
 
