@@ -73,6 +73,10 @@
             - [视图的修改](#视图的修改)
             - [视图的特性](#视图的特性)
             - [视图的algorithm](#视图的algorithm)
+    - [存储引擎](#存储引擎)
+        - [存储引擎机器特点](#存储引擎机器特点)
+    - [触发器 trigger](#触发器-trigger)
+        - [定义](#定义)
 
 <!-- /TOC -->
 # MySQL
@@ -3027,7 +3031,30 @@ Select  goods_id,cat_id,goods_name,shop_price from goods where shop_price > 2000
 再次查临时表
 Select * from temptable where shop_price< 3000
 
+## 存储引擎
+engine是mysql存储数据的不同方式
 
+### 存储引擎机器特点
+![](http://ww1.sinaimg.cn/large/005Lei8Jly1g9x6jm0mexj30h10al402.jpg)
+
+
+事务的四个特性
+原子性：要么成功，要么都不成功
+        两步或者n步操作，逻辑上不可分割
+一致性：擦欧总前后，值得变化，逻辑上成立
+隔离性：事务结束前，每一步操作带来的影响，别人看不见
+持久性：事务一旦完成，无法撤销
+
+
+
+## 触发器 trigger
+### 定义
+进行数据库应用软件开发时，我们有时会碰到表中某些数据改变，
+希望同时引起其他相关数据改变的需求，
+利用触发器就能满足这样的需求。
+它能在表中某些特定的数据变化时自动完成某些查询。也能用触发器不仅可以简化程序，
+而且可以增加程序的灵活性
+>触发器是一类特殊的事务，可以监视魔种数据操作（insert/update/delete），并触发相关操作（insert/update/delete）。
 
 
 
