@@ -1,0 +1,4 @@
+修改juypter工作目录配置
+‪C:\Users\lzx\.jupyter\jupyter_notebook_config.py
+
+找到jupyter快捷方式，右键打开属性，将“目标” 最后面的 “%USERPROFILE%” 删除就可以了。
